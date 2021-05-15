@@ -506,6 +506,11 @@ struct sock {
 	void			(*sk_state_change)(struct sock *sk);
 	void			(*sk_data_ready)(struct sock *sk);
 	void			(*sk_write_space)(struct sock *sk);
+#ifdef CONFIG_SECURITY_TEMPESTA
+	int			(*sk_write_xmit)(struct sock *sk,
+						 struct sk_buff *skb,
+						 unsigned int limit);
+#endif
 	void			(*sk_error_report)(struct sock *sk);
 	int			(*sk_backlog_rcv)(struct sock *sk,
 						  struct sk_buff *skb);
@@ -861,6 +866,9 @@ enum sock_flags {
 	SOCK_TXTIME,
 	SOCK_XDP, /* XDP is attached */
 	SOCK_TSTAMP_NEW, /* Indicates 64 bit timestamps always */
+#ifdef CONFIG_SECURITY_TEMPESTA
+	SOCK_TEMPESTA, /* The socket is managed by Tempesta FW */
+#endif
 };
 
 #define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
@@ -1915,8 +1923,7 @@ static inline bool sk_rethink_txhash(struct sock *sk)
 static inline struct dst_entry *
 __sk_dst_get(struct sock *sk)
 {
-	return rcu_dereference_check(sk->sk_dst_cache,
-				     lockdep_sock_is_held(sk));
+	return rcu_dereference_raw(sk->sk_dst_cache);
 }
 
 static inline struct dst_entry *
