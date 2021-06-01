@@ -924,6 +924,7 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(sk_stream_alloc_skb);
 
 static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 				       int large_allowed)
