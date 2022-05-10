@@ -210,7 +210,7 @@ tempesta_reserve_pages(void)
 		map[nid].addr = (unsigned long)page_address(p);
 		map[nid].pages = PGNUM4K;
 
-		pr_info("Tempesta: allocated huge pages space %p %luMB at node"
+		pr_info("Tempesta: allocated huge pages space %pK %luMB at node"
 			" %d\n", page_address(p),
 			PGNUM4K * PAGE_SIZE / (1024 * 1024), nid);
 	}

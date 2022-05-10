@@ -154,6 +154,10 @@ void __kernel_fpu_begin_mask(unsigned int kfpu_mask)
 void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 {
 #ifdef CONFIG_SECURITY_TEMPESTA
+	/* SoftIRQ in the Tempesta kernel always enables FPU. */
+	if (likely(in_serving_softirq()))
+		return;
+
 	/*
 	 * We don't know in which context the function is called, but we know
 	 * preciseely that softirq uses FPU, so we have to disable softirq as
@@ -162,11 +166,8 @@ void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 	local_bh_disable();
 #endif
 	preempt_disable();
-#ifdef CONFIG_SECURITY_TEMPESTA
-	/* SoftIRQ in the Tempesta kernel always enables FPU. */
-	if (unlikely(!in_serving_softirq()))
-#endif
-		__kernel_fpu_begin_mask(kfpu_mask);
+
+	__kernel_fpu_begin_mask(kfpu_mask);
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_begin_mask);
 
@@ -180,9 +181,11 @@ void __kernel_fpu_end_bh(void)
 void kernel_fpu_end(void)
 {
 #ifdef CONFIG_SECURITY_TEMPESTA
-	if (unlikely(!in_serving_softirq()))
+	if (likely(in_serving_softirq()))
+		return;
 #endif
-		__kernel_fpu_end_bh();
+	__kernel_fpu_end_bh();
+
 	preempt_enable();
 #ifdef CONFIG_SECURITY_TEMPESTA
 	local_bh_enable();
