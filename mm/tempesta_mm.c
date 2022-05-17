@@ -80,9 +80,6 @@ tempesta_alloc_hpage(int nid)
 	__ClearPageReserved(p);
 	prep_compound_page(p, HUGETLB_PAGE_ORDER);
 
-	/* Acquire the page immediately. */
-	set_page_refcounted(p);
-
 	return p;
 }
 
