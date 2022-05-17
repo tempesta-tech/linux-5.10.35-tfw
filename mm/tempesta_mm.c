@@ -78,7 +78,6 @@ tempesta_alloc_hpage(int nid)
 	count_vm_event(HTLB_BUDDY_PGALLOC);
 
 	__ClearPageReserved(p);
-	prep_compound_page(p, HUGETLB_PAGE_ORDER);
 
 	return p;
 }
