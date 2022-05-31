@@ -1,7 +1,7 @@
 /**
  *		Tempesta Memory Reservation
  *
- * Copyright (C) 2015-2018 Tempesta Technologies, Inc.
+ * Copyright (C) 2015-2022 Tempesta Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -78,10 +78,6 @@ tempesta_alloc_hpage(int nid)
 	count_vm_event(HTLB_BUDDY_PGALLOC);
 
 	__ClearPageReserved(p);
-	prep_compound_page(p, HUGETLB_PAGE_ORDER);
-
-	/* Acquire the page immediately. */
-	set_page_refcounted(p);
 
 	return p;
 }
