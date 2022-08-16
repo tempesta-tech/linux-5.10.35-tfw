@@ -2644,6 +2644,7 @@ void tcp_write_queue_purge(struct sock *sk)
 	tcp_sk(sk)->packets_out = 0;
 	inet_csk(sk)->icsk_backoff = 0;
 }
+EXPORT_SYMBOL_GPL(tcp_write_queue_purge);
 
 int tcp_disconnect(struct sock *sk, int flags)
 {
