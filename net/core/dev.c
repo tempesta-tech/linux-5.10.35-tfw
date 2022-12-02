@@ -4246,7 +4246,9 @@ int weight_p __read_mostly = 64;           /* old backlog weight */
 int dev_weight_rx_bias __read_mostly = 1;  /* bias for backlog weight */
 int dev_weight_tx_bias __read_mostly = 1;  /* bias for output_queue quota */
 int dev_rx_weight __read_mostly = 64;
+EXPORT_SYMBOL(dev_rx_weight);
 int dev_tx_weight __read_mostly = 64;
+EXPORT_SYMBOL(dev_tx_weight);
 /* Maximum number of GRO_NORMAL skbs to batch up for list-RX */
 int gro_normal_batch __read_mostly = 8;
 
