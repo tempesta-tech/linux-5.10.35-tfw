@@ -160,12 +160,12 @@ out:
 }
 #else
 /*
- * Chunks of size 512B, 1KB and 2KB.
+ * Chunks of size 128B, 256B, 512B, 1KB and 2KB.
  * Typical sk_buff requires ~272B or ~552B (for fclone),
  * skb_shared_info is ~320B.
  */
-#define PG_LISTS_N		3
-#define PG_CHUNK_BITS		(PAGE_SHIFT - 3)
+#define PG_LISTS_N		5
+#define PG_CHUNK_BITS		(PAGE_SHIFT - 5)
 #define PG_CHUNK_SZ		(1 << PG_CHUNK_BITS)
 #define PG_CHUNK_MASK		(~(PG_CHUNK_SZ - 1))
 #define PG_ALLOC_SZ(s)		(((s) + (PG_CHUNK_SZ - 1)) & PG_CHUNK_MASK)
@@ -260,8 +260,13 @@ do {									\
 
 	pools = this_cpu_ptr(pg_mpool);
 
-	for (o = (cn == 1) ? 0 : (cn == 2) ? 1 : (cn <= 4) ? 2 : PG_LISTS_N;
-	     o < PG_LISTS_N; ++o)
+	o = (cn == 1) ? 0
+	    : (cn == 2) ? 1
+	      : (cn <= 4) ? 2
+	        : (cn <= 8) ? 3
+		  : (cn <= 16) ? 4 : PG_LISTS_N;
+
+	for (; o < PG_LISTS_N; ++o)
 	{
 		struct list_head *pc;
 		if (!__pg_pool_grow(&pools[o]))
