@@ -3524,6 +3524,7 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 	 */
 	trace_tcp_send_reset(sk, NULL);
 }
+EXPORT_SYMBOL(tcp_send_active_reset);
 
 /* Send a crossed SYN-ACK during socket establishment.
  * WARNING: This routine must only be called when we have already sent
@@ -3564,7 +3565,6 @@ int tcp_send_synack(struct sock *sk)
 	}
 	return tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 }
-EXPORT_SYMBOL(tcp_send_active_reset);
 
 /**
  * tcp_make_synack - Allocate one skb and build a SYNACK packet.
