@@ -2168,6 +2168,10 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 	TCP_SKB_CB(buff)->end_seq = TCP_SKB_CB(skb)->end_seq;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(buff)->seq;
 
+#if CONFIG_SECURITY_TEMPESTA
+	tfw_skb_cb_copy(TFW_SKB_CB(buff), TFW_SKB_CB(skb));
+#endif
+
 	/* PSH and FIN should only be set in the second packet. */
 	flags = TCP_SKB_CB(skb)->tcp_flags;
 	TCP_SKB_CB(skb)->tcp_flags = flags & ~(TCPHDR_FIN | TCPHDR_PSH);
@@ -2700,7 +2704,16 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 							  max_segs),
 						    nonagle);
 #ifdef CONFIG_SECURITY_TEMPESTA
-		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
+		if (sk->sk_prepare_xmit && tempesta_tls_skb_type(skb)) {
+			unsigned int cut_off = limit;
+
+			BUG_ON(!sk->sk_write_xmit);
+			result = sk->sk_prepare_xmit(sk, skb, &cut_off);
+			if (unlikely(result)) {
+				if (result == -ENOMEM)
+					break; /* try again next time */
+				return false;
+			}
 			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
 				net_warn_ratelimited("%s: too small MSS %u"
 						     " for TLS\n",
@@ -2711,6 +2724,10 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 				limit = TLS_MAX_PAYLOAD_SIZE;
 			else
 				limit -= TLS_MAX_OVERHEAD;
+			if (cut_off < limit) {
+				limit = cut_off;
+				// TODO push_one = 1;
+			}
 		}
 #endif
 		if (skb->len > limit &&
@@ -2741,6 +2758,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 * get 16KB (maximum size of TLS message).
 		 */
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
+			BUG_ON(!sk->sk_prepare_xmit);
 			result = sk->sk_write_xmit(sk, skb, limit);
 			if (unlikely(result)) {
 				if (result == -ENOMEM)

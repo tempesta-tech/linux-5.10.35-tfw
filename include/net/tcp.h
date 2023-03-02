@@ -899,6 +899,31 @@ struct tcp_skb_cb {
 
 #define TCP_SKB_CB(__skb)	((struct tcp_skb_cb *)&((__skb)->cb[0]))
 
+#if CONFIG_SECURITY_TEMPESTA
+struct tfw_skb_cb {
+	unsigned long	h_len;
+	unsigned long	b_len;
+	char		*b_data;
+	char		*frame_head;
+	unsigned int	stream_id;
+	bool		valid;
+};
+
+#define TFW_SKB_CB(__skb)	((struct tfw_skb_cb *)&((__skb)->tfw_cb[0]))
+
+static inline void
+tfw_skb_cb_clear(struct sk_buff *skb)
+{
+	memset(TFW_SKB_CB(skb), 0, sizeof(struct tfw_skb_cb));
+}
+
+static inline void
+tfw_skb_cb_copy(struct tfw_skb_cb *dst, struct tfw_skb_cb *src)
+{
+	memcpy(dst, src, sizeof(struct tfw_skb_cb));
+}
+#endif
+
 static inline void bpf_compute_data_end_sk_skb(struct sk_buff *skb)
 {
 	TCP_SKB_CB(skb)->bpf.data_end = skb->data + skb_headlen(skb);

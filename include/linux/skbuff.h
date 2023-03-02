@@ -752,6 +752,9 @@ struct sk_buff {
 	 * first. This is owned by whoever has the skb queued ATM.
 	 */
 	char			cb[48] __aligned(8);
+#ifdef CONFIG_SECURITY_TEMPESTA
+	char			tfw_cb[40] __aligned(8);
+#endif
 
 	union {
 		struct {
