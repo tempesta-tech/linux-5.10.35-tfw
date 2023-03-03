@@ -1524,7 +1524,10 @@ static void tcp_insert_write_queue_after(struct sk_buff *skb,
 					 enum tcp_queue tcp_queue)
 {
 #ifdef CONFIG_SECURITY_TEMPESTA
-	tempesta_tls_skb_typecp(buff, skb);
+	tempesta_skb_copy_cb(buff, skb);
+	if (is_tempesta_skb_cb(buff))
+		tempesta_skb_clear_cb_val(buff, TEMPESTA_SKB_FLAG_CLEAR_MASK,
+					  TEMPESTA_SKB_FLAG_OFF);
 #endif
 	if (tcp_queue == TCP_FRAG_IN_WRITE_QUEUE)
 		__skb_queue_after(&sk->sk_write_queue, skb, buff);
@@ -2700,8 +2703,17 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 							  max_segs),
 						    nonagle);
 #ifdef CONFIG_SECURITY_TEMPESTA
-		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
-			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
+/*
+ * Maximum number of bytes, that the hpack dynamic
+ * table size can occupy.
+ */
+#define HPACK_TBL_BYTES_OCCUPIED_MAX 3
+		if (sk->sk_write_xmit
+		    && (tempesta_skb_get_cb_val(skb, TEMPESTA_TLS_SKB_TYPE_OFF,
+						TEMPESTA_TLS_SKB_TYPE_MAX)
+			& TEMPESTA_TLS_SKB_TYPE_MAX)) {
+			if (unlikely(limit <= TLS_MAX_OVERHEAD +
+				     HPACK_TBL_BYTES_OCCUPIED_MAX)) {
 				net_warn_ratelimited("%s: too small MSS %u"
 						     " for TLS\n",
 						     __func__, mss_now);
@@ -2712,10 +2724,17 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			else
 				limit -= TLS_MAX_OVERHEAD;
 		}
-#endif
+		if (skb->len > limit - HPACK_TBL_BYTES_OCCUPIED_MAX &&
+		    unlikely(tso_fragment(sk, skb,
+					  limit - HPACK_TBL_BYTES_OCCUPIED_MAX,
+					  mss_now, gfp)))
+			break;
+#undef HPACK_TBL_BYTES_OCCUPIED_MAX
+#else
 		if (skb->len > limit &&
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
+#endif
 
 		if (tcp_small_queue_check(sk, skb, 0))
 			break;
@@ -2740,7 +2759,10 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 * different TCP segments, so coalesce skbs for transmission to
 		 * get 16KB (maximum size of TLS message).
 		 */
-		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
+		if (sk->sk_write_xmit
+		    && (tempesta_skb_get_cb_val(skb, TEMPESTA_TLS_SKB_TYPE_OFF,
+						TEMPESTA_TLS_SKB_TYPE_MAX)
+			& TEMPESTA_TLS_SKB_TYPE_MAX)) {
 			result = sk->sk_write_xmit(sk, skb, limit);
 			if (unlikely(result)) {
 				if (result == -ENOMEM)
