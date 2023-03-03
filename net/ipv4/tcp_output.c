@@ -2700,8 +2700,14 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 							  max_segs),
 						    nonagle);
 #ifdef CONFIG_SECURITY_TEMPESTA
+/*
+ * Maximum number of bytes, that the hpack dynamic
+ * table size can occupy.
+ */
+#define HPACK_TBL_BYTES_OCCUPIED_MAX 3
 		if (sk->sk_write_xmit && tempesta_tls_skb_type(skb)) {
-			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
+			if (unlikely(limit <= TLS_MAX_OVERHEAD +
+				     HPACK_TBL_BYTES_OCCUPIED_MAX)) {
 				net_warn_ratelimited("%s: too small MSS %u"
 						     " for TLS\n",
 						     __func__, mss_now);
@@ -2712,10 +2718,17 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			else
 				limit -= TLS_MAX_OVERHEAD;
 		}
-#endif
+		if (skb->len > limit - HPACK_TBL_BYTES_OCCUPIED_MAX &&
+		    unlikely(tso_fragment(sk, skb,
+					  limit - HPACK_TBL_BYTES_OCCUPIED_MAX,
+					  mss_now, gfp)))
+			break;
+#undef HPACK_TBL_BYTES_OCCUPIED_MAX
+#else
 		if (skb->len > limit &&
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
+#endif
 
 		if (tcp_small_queue_check(sk, skb, 0))
 			break;

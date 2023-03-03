@@ -946,6 +946,9 @@ struct sk_buff {
 #ifdef CONFIG_SECURITY_TEMPESTA
 long __get_skb_count(void);
 
+#define TEMPESTA_TLS_SKB_TYPE_MAX 0x80
+#define TEMPESTA_SKB_FLAG_MAX 0x80
+
 /**
  * The skb type is used only for time between @skb was inserted into TCP send
  * queue and it's processed (first time) in tcp_write_xmit(). This time the @skb
@@ -957,7 +960,7 @@ long __get_skb_count(void);
 static inline void
 tempesta_tls_skb_settype(struct sk_buff *skb, unsigned char type)
 {
-	BUG_ON(type >= 0x80);
+	BUG_ON(type >= TEMPESTA_TLS_SKB_TYPE_MAX);
 	WARN_ON_ONCE(skb->dev);
 
 	skb->dev = (void *)((type << 1) | 1UL);
@@ -974,9 +977,43 @@ tempesta_tls_skb_type(struct sk_buff *skb)
 }
 
 static inline void
+tempesta_skb_set_flag(struct sk_buff *skb, unsigned char flag)
+{
+	unsigned long d = (unsigned long)skb->dev;
+	BUG_ON(flag >= TEMPESTA_SKB_FLAG_MAX);
+	BUG_ON(!tempesta_tls_skb_type(skb));
+
+	d |= (((unsigned long)flag) << 8);
+	skb->dev = (void *)d;
+}
+
+static inline void
+tempesta_skb_clear_flag(struct sk_buff *skb, unsigned char flag)
+{
+	unsigned long d = (unsigned long)skb->dev;
+	BUG_ON(flag >= TEMPESTA_SKB_FLAG_MAX);
+	BUG_ON(!tempesta_tls_skb_type(skb));
+
+	d &= ~(((unsigned long)flag) << 8);
+	skb->dev = (void *)d;
+}
+
+static inline unsigned char
+tempesta_skb_flags(struct sk_buff *skb)
+{
+	unsigned long d = (unsigned long)skb->dev;
+
+	if (!(d & 1UL))
+		return 0; /* a pointer in skb->dev */
+	return d >> 8;
+}
+
+static inline void
 tempesta_tls_skb_typecp(struct sk_buff *dst, struct sk_buff *src)
 {
 	dst->dev = src->dev;
+	if (tempesta_tls_skb_type(dst))
+		tempesta_skb_clear_flag(dst, TEMPESTA_SKB_FLAG_MAX - 1);
 }
 
 static inline void
