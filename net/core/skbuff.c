@@ -1255,6 +1255,9 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #ifdef CONFIG_NET_SCHED
 	CHECK_SKB_FIELD(tc_index);
 #endif
+#ifdef CONFIG_SECURITY_TEMPESTA
+	new->tail_lock = 0;
+#endif
 
 }
 
