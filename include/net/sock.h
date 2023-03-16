@@ -507,7 +507,7 @@ struct sock {
 	void			(*sk_data_ready)(struct sock *sk);
 	void			(*sk_write_space)(struct sock *sk);
 #ifdef CONFIG_SECURITY_TEMPESTA
-	int			(*sk_write_xmit)(struct sock *sk,
+	struct sk_buff*		(*sk_write_xmit)(struct sock *sk,
 						 struct sk_buff *skb,
 						 unsigned int limit);
 #endif

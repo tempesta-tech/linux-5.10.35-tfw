@@ -2632,6 +2632,9 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	struct sk_buff *tskb;
+#endif
 	unsigned int tso_segs, sent_pkts;
 	int cwnd_quota;
 	int result;
@@ -2763,9 +2766,11 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		    && (tempesta_skb_get_cb_val(skb, TEMPESTA_TLS_SKB_TYPE_OFF,
 						TEMPESTA_TLS_SKB_TYPE_MAX)
 			& TEMPESTA_TLS_SKB_TYPE_MAX)) {
-			result = sk->sk_write_xmit(sk, skb, limit);
-			if (unlikely(result)) {
-				if (result == -ENOMEM)
+			tskb = sk->sk_write_xmit(sk, skb, limit);
+			if (!IS_ERR_OR_NULL(tskb)) {
+				skb = tskb;
+			} else if (IS_ERR(tskb)) {
+				if (PTR_ERR(tskb) == -ENOMEM)
 					break; /* try again next time */
 				return false;
 			}
