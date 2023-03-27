@@ -1446,7 +1446,7 @@ void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 EXPORT_SYMBOL(tcp_queue_skb);
 
 /* Initialize TSO segments for a packet. */
-static void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
+void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
 {
 	if (skb->len <= mss_now) {
 		/* Avoid the costly divide in the normal
@@ -1459,11 +1459,12 @@ static void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
 		TCP_SKB_CB(skb)->tcp_gso_size = mss_now;
 	}
 }
+EXPORT_SYMBOL(tcp_set_skb_tso_segs);
 
 /* Pcount in the middle of the write queue got changed, we need to do various
  * tweaks to fix counters
  */
-static void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb, int decr)
+void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb, int decr)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -1487,6 +1488,7 @@ static void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb, int de
 
 	tcp_verify_left_out(tp);
 }
+EXPORT_SYMBOL(tcp_adjust_pcount);
 
 static bool tcp_has_tx_tstamp(const struct sk_buff *skb)
 {
@@ -1494,7 +1496,7 @@ static bool tcp_has_tx_tstamp(const struct sk_buff *skb)
 		(skb_shinfo(skb)->tx_flags & SKBTX_ANY_TSTAMP);
 }
 
-static void tcp_fragment_tstamp(struct sk_buff *skb, struct sk_buff *skb2)
+void tcp_fragment_tstamp(struct sk_buff *skb, struct sk_buff *skb2)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 
@@ -1510,12 +1512,14 @@ static void tcp_fragment_tstamp(struct sk_buff *skb, struct sk_buff *skb2)
 		TCP_SKB_CB(skb)->txstamp_ack = 0;
 	}
 }
+EXPORT_SYMBOL(tcp_fragment_tstamp);
 
-static void tcp_skb_fragment_eor(struct sk_buff *skb, struct sk_buff *skb2)
+void tcp_skb_fragment_eor(struct sk_buff *skb, struct sk_buff *skb2)
 {
 	TCP_SKB_CB(skb2)->eor = TCP_SKB_CB(skb)->eor;
 	TCP_SKB_CB(skb)->eor = 0;
 }
+EXPORT_SYMBOL(tcp_skb_fragment_eor);
 
 /* Insert buff after skb on the write or rtx queue of sk.  */
 static void tcp_insert_write_queue_after(struct sk_buff *skb,

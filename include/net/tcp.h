@@ -662,6 +662,11 @@ extern int tcp_send_mss(struct sock *sk, int *size_goal, int flags);
 extern void tcp_mark_push(struct tcp_sock *tp, struct sk_buff *skb);
 extern void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags);
 extern void tcp_queue_skb(struct sock *sk, struct sk_buff *skb);
+extern void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now);
+extern void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb,
+			      int decr);
+extern void tcp_fragment_tstamp(struct sk_buff *skb, struct sk_buff *skb2);
+extern void tcp_skb_fragment_eor(struct sk_buff *skb, struct sk_buff *skb2);
 extern int tcp_close_state(struct sock *sk);
 extern void skb_entail(struct sock *sk, struct sk_buff *skb);
 
