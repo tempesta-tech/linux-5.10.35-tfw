@@ -955,7 +955,32 @@ struct sk_buff {
 long __get_skb_count(void);
 
 enum {
-	TEMPESTA_SKB_FLAG_CLEAR_MASK	= 0x01,
+	/* This skb contains start of http2 frame. */
+	SS_F_HTTP2_FRAME_START                  = 0x01,
+	/* This skb contains new hpack dynamic table size. */
+	SS_F_HTTT2_HPACK_TBL_SZ_ENCODED         = 0x02,
+	/* This skb contains headers frame. */
+	SS_F_HTTT2_FRAME_HEADERS                = 0x04,
+	/* This skb contains data frame. */
+	SS_F_HTTT2_FRAME_DATA                   = 0x08,
+	/* This skb was already prepared. */
+	SS_F_HTTP2_FRAME_PREPARED               = 0x10,
+	/* HEADERS frame was already prepared for this skb. */
+	SS_F_HTTT2_FRAME_HEADERS_DONE		= 0x20,
+	/* DATA frame was already prepared for this skb. */
+	SS_F_HTTT2_FRAME_DATA_DONE              = 0x40,
+	/* This skb acks new hpack dynamic tbl size. */
+	SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING   = 0x80,
+	/*
+	 * This flags should be cleared when we copy flags
+	 * from one skb to another one.
+	 */
+	TEMPESTA_SKB_FLAG_CLEAR_MASK	= SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING |
+					  SS_F_HTTT2_FRAME_DATA_DONE |
+					  SS_F_HTTT2_FRAME_HEADERS_DONE |
+					  SS_F_HTTP2_FRAME_PREPARED |
+					  SS_F_HTTT2_HPACK_TBL_SZ_ENCODED |
+					  SS_F_HTTP2_FRAME_START,
 };
 
 static inline unsigned long
