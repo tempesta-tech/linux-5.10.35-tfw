@@ -4120,12 +4120,39 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 
 	skb = tcp_send_head(sk);
 	if (skb && before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
+#ifdef CONFIG_SECURITY_TEMPESTA
+		unsigned int nskbs;
+#endif
 		int err;
 		unsigned int mss = tcp_current_mss(sk);
 		unsigned int seg_size = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
 
 		if (before(tp->pushed_seq, TCP_SKB_CB(skb)->end_seq))
 			tp->pushed_seq = TCP_SKB_CB(skb)->end_seq;
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+		if (sk->sk_prepare_xmit && skb_tfw_tls_type(skb)) {
+			BUG_ON(!sk->sk_write_xmit);
+
+			if (unlikely(seg_size <= TLS_MAX_OVERHEAD)) {
+				net_warn_ratelimited("%s: too small MSS %u"
+						     " for TLS\n",
+						     __func__, mss);
+				return -ENOMEM;
+			}
+			if (seg_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)
+				seg_size = TLS_MAX_PAYLOAD_SIZE;
+			else
+				seg_size -= TLS_MAX_OVERHEAD;
+			err = sk->sk_prepare_xmit(sk, skb, mss, &seg_size,
+						  &nskbs);
+			if (unlikely(err)) {
+				if (err == -ENOMEM)
+					goto xmit_probe_skb;
+				return err;
+			}
+		}
+#endif
 
 		/* We are probing the opening of a window
 		 * but the window size is != 0
@@ -4142,11 +4169,30 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 			tcp_set_skb_tso_segs(skb, mss);
 
 		TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_PSH;
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+		if (sk->sk_write_xmit && skb_tfw_tls_type(skb)) {
+			BUG_ON(!sk->sk_prepare_xmit);
+
+			err = sk->sk_write_xmit(sk, skb, mss, seg_size, nskbs);
+			if (unlikely(err)) {
+				if (err == -ENOMEM)
+					goto xmit_probe_skb;
+				return err;
+			}
+			/* Fix up TSO segments after TLS overhead. */
+			tcp_set_skb_tso_segs(skb, mss);
+		}
+#endif
+
 		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 		if (!err)
 			tcp_event_new_data_sent(sk, skb);
 		return err;
 	} else {
+#ifdef CONFIG_SECURITY_TEMPESTA
+xmit_probe_skb:
+#endif
 		if (between(tp->snd_up, tp->snd_una + 1, tp->snd_una + 0xFFFF))
 			tcp_xmit_probe_skb(sk, 1, mib);
 		return tcp_xmit_probe_skb(sk, 0, mib);
