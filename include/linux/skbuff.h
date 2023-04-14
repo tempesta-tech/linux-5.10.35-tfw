@@ -730,6 +730,14 @@ struct sk_buff {
 				 * UDP receive path is one user.
 				 */
 				unsigned long		dev_scratch;
+#ifdef CONFIG_SECURITY_TEMPESTA
+                                struct {
+                                        __u8    present : 1;
+                                        __u8    tls_type : 7;
+                                        __u16   flags : 16;
+                                        unsigned int cb;
+                                } tfw_cb;
+#endif
 			};
 		};
 		struct rb_node		rbnode; /* used in netem, ip4 defrag, and tcp stack */
@@ -947,74 +955,74 @@ struct sk_buff {
 long __get_skb_count(void);
 
 enum {
-	TEMPESTA_TLS_SKB_TYPE_OFF	= 0,
-	TEMPESTA_TLS_SKB_TYPE_MAX	= 0x7F,
-	TEMPESTA_SKB_FLAG_OFF		= 7,
 	TEMPESTA_SKB_FLAG_CLEAR_MASK	= 0x01,
-	TEMPESTA_SKB_FLAG_MAX		= 0xFF,
 };
 
-/**
- * Tempesta uses skb->dev only for time between @skb was inserted into TCP send
- * queue and it's processed (first time) in tcp_write_xmit(). This time the @skb
- * isn't scheduled yet, so we can use skb->dev for our needs to avoid extending
- * sk_buff. We use the least significant bit to be sure that this isn't a
- * pointer to not to break anything.
- */
-static inline void
-tempesta_skb_set_cb_val(struct sk_buff *skb, unsigned long val, unsigned char off)
-{
-	unsigned long d = (unsigned long)skb->dev;
-
-	BUG_ON(off + 1 >= sizeof(skb->dev) * BITS_PER_BYTE);
-	BUG_ON(!val || __builtin_clzl(val) < off + 1);
-	BUG_ON(skb->dev && !((unsigned long)skb->dev & 1UL));
-
-	d |= ((val << (off + 1)) | 1UL);
-	skb->dev = (void *)d;
-}
-
 static inline unsigned long
-tempesta_skb_get_cb_val(struct sk_buff *skb, unsigned char off, unsigned long mask)
+skb_tfw_is_present(struct sk_buff *skb)
 {
-	unsigned long d = (unsigned long)skb->dev;
-
-	BUG_ON(off + 1 >= sizeof(skb->dev) * BITS_PER_BYTE);
-	if (!(d & 1UL))
-		return 0; /* a pointer in skb->dev */
-	return (d >> (off + 1)) & mask;
+	return skb->tfw_cb.present;
 }
 
 static inline void
-tempesta_skb_clear_cb_val(struct sk_buff *skb, unsigned long val, unsigned char off)
+skb_set_tfw_tls_type(struct sk_buff *skb, unsigned char tls_type)
 {
-	unsigned long d = (unsigned long)skb->dev;
-	BUG_ON(off + 1 >= sizeof(skb->dev) * BITS_PER_BYTE);
-	BUG_ON(!val || __builtin_clzl(val) < off + 1);
-	BUG_ON(skb->dev && !((unsigned long)skb->dev & 1UL));
-
-	d &= ~(val << (off + 1));
-	skb->dev = (void *)d;
+        BUG_ON(tls_type > 0x7F);
+        skb->tfw_cb.present = 1;
+        skb->tfw_cb.tls_type = tls_type;
 }
 
-static inline unsigned long
-is_tempesta_skb_cb(struct sk_buff *skb)
+static inline unsigned char
+skb_tfw_tls_type(struct sk_buff *skb)
 {
-	return ((unsigned long)skb->dev) & 1UL;
+	return skb->tfw_cb.present ? skb->tfw_cb.tls_type : 0;
 }
 
 static inline void
-tempesta_skb_copy_cb(struct sk_buff *dst, struct sk_buff *src)
+skb_set_tfw_flags(struct sk_buff *skb, unsigned short flags)
+{
+        BUG_ON(flags > 0xFFFF);
+        skb->tfw_cb.present = 1;
+        skb->tfw_cb.flags |= flags;
+}
+
+static inline void
+skb_clear_tfw_flag(struct sk_buff *skb, unsigned short flag)
+{
+        BUG_ON(flag > 0xFFFF);
+        skb->tfw_cb.flags &= ~flag;
+}
+
+static inline unsigned short
+skb_tfw_flags(struct sk_buff *skb)
+{
+        return skb->tfw_cb.present ? skb->tfw_cb.flags : 0;
+}
+
+static inline void
+skb_set_tfw_cb(struct sk_buff *skb, unsigned int cb)
+{
+        skb->tfw_cb.present = 1;
+        skb->tfw_cb.cb = cb;
+}
+
+static inline unsigned int
+skb_tfw_cb(struct sk_buff *skb)
+{
+        return skb->tfw_cb.present ? skb->tfw_cb.cb : 0;
+}
+
+static inline void
+skb_copy_tfw_cb(struct sk_buff *dst, struct sk_buff *src)
 {
 	dst->dev = src->dev;
+        dst->tfw_cb.flags &= (unsigned short)(~TEMPESTA_SKB_FLAG_CLEAR_MASK);
 }
 
 static inline void
-tempesta_skb_clear_cb(struct sk_buff *skb)
+skb_clear_tfw_cb(struct sk_buff *skb)
 {
-	unsigned long d = (unsigned long)skb->dev;
-
-	WARN_ON_ONCE(!(d & 1UL));
+	WARN_ON_ONCE(!skb->tfw_cb.present);
 	skb->dev = NULL;
 }
 
