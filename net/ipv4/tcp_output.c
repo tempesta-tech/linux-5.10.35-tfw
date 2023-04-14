@@ -1524,10 +1524,7 @@ static void tcp_insert_write_queue_after(struct sk_buff *skb,
 					 enum tcp_queue tcp_queue)
 {
 #ifdef CONFIG_SECURITY_TEMPESTA
-	tempesta_skb_copy_cb(buff, skb);
-	if (is_tempesta_skb_cb(buff))
-		tempesta_skb_clear_cb_val(buff, TEMPESTA_SKB_FLAG_CLEAR_MASK,
-					  TEMPESTA_SKB_FLAG_OFF);
+	skb_copy_tfw_cb(buff, skb);
 #endif
 	if (tcp_queue == TCP_FRAG_IN_WRITE_QUEUE)
 		__skb_queue_after(&sk->sk_write_queue, skb, buff);
@@ -2706,11 +2703,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 							  max_segs),
 						    nonagle);
 #ifdef CONFIG_SECURITY_TEMPESTA
-		if (sk->sk_prepare_xmit
-		    && (tempesta_skb_get_cb_val(skb, TEMPESTA_TLS_SKB_TYPE_OFF,
-						TEMPESTA_TLS_SKB_TYPE_MAX)
-			& TEMPESTA_TLS_SKB_TYPE_MAX))
-		{
+		if (sk->sk_prepare_xmit && skb_tfw_tls_type(skb)) {
 			BUG_ON(!sk->sk_write_xmit);
 
 			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
@@ -2759,11 +2752,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 * different TCP segments, so coalesce skbs for transmission to
 		 * get 16KB (maximum size of TLS message).
 		 */
-		if (sk->sk_write_xmit
-		    && (tempesta_skb_get_cb_val(skb, TEMPESTA_TLS_SKB_TYPE_OFF,
-						TEMPESTA_TLS_SKB_TYPE_MAX)
-			& TEMPESTA_TLS_SKB_TYPE_MAX))
-		{
+		if (sk->sk_write_xmit && skb_tfw_tls_type(skb)) {
 			BUG_ON(!sk->sk_prepare_xmit);
 
 			result = sk->sk_write_xmit(sk, skb, mss_now, limit,
