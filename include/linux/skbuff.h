@@ -972,13 +972,12 @@ enum {
 	/* This skb acks new hpack dynamic tbl size. */
 	SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING   = 0x80,
 	/*
-	 * This flags should be cleared when we copy flags
+	 * These flags should be cleared when we copy flags
 	 * from one skb to another one.
 	 */
 	TEMPESTA_SKB_FLAG_CLEAR_MASK	= SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING |
 					  SS_F_HTTT2_FRAME_DATA_DONE |
 					  SS_F_HTTT2_FRAME_HEADERS_DONE |
-					  SS_F_HTTP2_FRAME_PREPARED |
 					  SS_F_HTTT2_HPACK_TBL_SZ_ENCODED |
 					  SS_F_HTTP2_FRAME_START,
 };
@@ -1006,7 +1005,6 @@ skb_tfw_tls_type(struct sk_buff *skb)
 static inline void
 skb_set_tfw_flags(struct sk_buff *skb, unsigned short flags)
 {
-        BUG_ON(flags > 0xFFFF);
         skb->tfw_cb.present = 1;
         skb->tfw_cb.flags |= flags;
 }
@@ -1014,7 +1012,6 @@ skb_set_tfw_flags(struct sk_buff *skb, unsigned short flags)
 static inline void
 skb_clear_tfw_flag(struct sk_buff *skb, unsigned short flag)
 {
-        BUG_ON(flag > 0xFFFF);
         skb->tfw_cb.flags &= ~flag;
 }
 
