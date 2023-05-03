@@ -3538,6 +3538,7 @@ void tcp_send_fin(struct sock *sk)
 	}
 	__tcp_push_pending_frames(sk, tcp_current_mss(sk), TCP_NAGLE_OFF);
 }
+EXPORT_SYMBOL(tcp_send_fin);
 
 /* We get here when a process closes a file descriptor (either due to
  * an explicit close() or as a byproduct of exit()'ing) and there
