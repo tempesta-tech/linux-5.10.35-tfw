@@ -83,16 +83,6 @@ int sk_stream_wait_connect(struct sock *sk, long *timeo_p)
 }
 EXPORT_SYMBOL(sk_stream_wait_connect);
 
-/**
- * sk_stream_closing - Return 1 if we still have things to send in our buffers.
- * @sk: socket to verify
- */
-static inline int sk_stream_closing(struct sock *sk)
-{
-	return (1 << sk->sk_state) &
-	       (TCPF_FIN_WAIT1 | TCPF_CLOSING | TCPF_LAST_ACK);
-}
-
 void sk_stream_wait_close(struct sock *sk, long timeout)
 {
 	if (timeout) {
