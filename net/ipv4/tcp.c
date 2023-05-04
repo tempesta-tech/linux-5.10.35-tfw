@@ -4070,10 +4070,15 @@ void tcp_done(struct sock *sk)
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
 
-	if (!sock_flag(sk, SOCK_DEAD))
+	if (!sock_flag(sk, SOCK_DEAD)) {
 		sk->sk_state_change(sk);
-	else
+	} else {
+#ifdef CONFIG_SECURITY_TEMPESTA
+		if (sk->sk_destroy_cb)
+			sk->sk_destroy_cb(sk);
+#endif
 		inet_csk_destroy_sock(sk);
+	}
 }
 EXPORT_SYMBOL_GPL(tcp_done);
 
