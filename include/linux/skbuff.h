@@ -805,6 +805,9 @@ struct sk_buff {
 #ifdef CONFIG_SKB_EXTENSIONS
 	__u8			active_extensions;
 #endif
+#ifdef CONFIG_SECURITY_TEMPESTA
+        __u8                    tail_lock:1;
+#endif
 	/* fields enclosed in headers_start/headers_end are copied
 	 * using a single memcpy() in __copy_skb_header()
 	 */
@@ -856,10 +859,6 @@ struct sk_buff {
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
-#ifdef CONFIG_SECURITY_TEMPESTA
-	__u8			tail_lock:1;
-#endif
-
 	__u8			ipvs_property:1;
 	__u8			inner_protocol_type:1;
 	__u8			remcsum_offload:1;

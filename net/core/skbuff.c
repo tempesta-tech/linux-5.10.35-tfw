@@ -1270,6 +1270,9 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	n->sk = NULL;
 	__copy_skb_header(n, skb);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+	C(tail_lock);
+#endif
 	C(len);
 	C(data_len);
 	C(mac_len);
