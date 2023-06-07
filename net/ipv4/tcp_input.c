@@ -5126,9 +5126,20 @@ restart:
 		int copy = min_t(int, SKB_MAX_ORDER(0, 0), end - start);
 		struct sk_buff *nskb;
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+		/*
+		 * This skb can be reused by Tempesta FW. Thus allocate
+		 * space for TCP headers.
+		 */
+		nskb = alloc_skb(copy + MAX_TCP_HEADER, GFP_ATOMIC);
+#else
 		nskb = alloc_skb(copy, GFP_ATOMIC);
+#endif
 		if (!nskb)
 			break;
+#ifdef CONFIG_SECURITY_TEMPESTA
+		skb_reserve(nskb, MAX_TCP_HEADER);
+#endif
 
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 #ifdef CONFIG_TLS_DEVICE
