@@ -585,6 +585,8 @@ enum tcp_queue {
 	TCP_FRAG_IN_WRITE_QUEUE,
 	TCP_FRAG_IN_RTX_QUEUE,
 };
+int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
+		 unsigned int mss_now, gfp_t gfp);
 int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 		 struct sk_buff *skb, u32 len,
 		 unsigned int mss_now, gfp_t gfp);

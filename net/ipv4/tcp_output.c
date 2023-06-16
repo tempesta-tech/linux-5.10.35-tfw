@@ -2145,8 +2145,8 @@ static bool tcp_snd_wnd_test(const struct tcp_sock *tp,
  * know that all the data is in scatter-gather pages, and that the
  * packet has never been sent out before (and thus is not cloned).
  */
-static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
-			unsigned int mss_now, gfp_t gfp)
+int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
+		 unsigned int mss_now, gfp_t gfp)
 {
 	int nlen = skb->len - len;
 	struct sk_buff *buff;
@@ -2196,6 +2196,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 
 	return 0;
 }
+EXPORT_SYMBOL(tso_fragment);
 
 /* Try to defer sending, if possible, in order to minimize the amount
  * of TSO splitting we do.  View it as a kind of TSO Nagle test.

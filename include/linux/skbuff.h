@@ -964,19 +964,13 @@ enum {
 	SS_F_HTTT2_FRAME_DATA                   = 0x08,
 	/* This skb was already prepared. */
 	SS_F_HTTP2_FRAME_PREPARED               = 0x10,
-	/* HEADERS frame was already prepared for this skb. */
-	SS_F_HTTT2_FRAME_HEADERS_DONE		= 0x20,
-	/* DATA frame was already prepared for this skb. */
-	SS_F_HTTT2_FRAME_DATA_DONE              = 0x40,
 	/* This skb acks new hpack dynamic tbl size. */
-	SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING   = 0x80,
+	SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING   = 0x20,
 	/*
 	 * These flags should be cleared when we copy flags
 	 * from one skb to another one.
 	 */
 	TEMPESTA_SKB_FLAG_CLEAR_MASK	= SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING |
-					  SS_F_HTTT2_FRAME_DATA_DONE |
-					  SS_F_HTTT2_FRAME_HEADERS_DONE |
 					  SS_F_HTTT2_HPACK_TBL_SZ_ENCODED |
 					  SS_F_HTTP2_FRAME_START,
 };
@@ -1037,7 +1031,6 @@ static inline void
 skb_copy_tfw_cb(struct sk_buff *dst, struct sk_buff *src)
 {
 	dst->dev = src->dev;
-        dst->tfw_cb.flags &= (unsigned short)(~TEMPESTA_SKB_FLAG_CLEAR_MASK);
 }
 
 static inline void
