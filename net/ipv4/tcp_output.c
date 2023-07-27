@@ -2706,6 +2706,11 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 
 	sent_pkts = 0;
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+	if (sk->sk_fill_write_queue && sk->sk_fill_write_queue(sk, mss_now))
+		return false;
+#endif
+
 	tcp_mstamp_refresh(tp);
 	if (!push_one) {
 		/* Do MTU probing. */

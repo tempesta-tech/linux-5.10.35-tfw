@@ -517,6 +517,8 @@ struct sock {
 						 unsigned int mss_now,
 						 unsigned int limit,
 						 unsigned int skbs);
+	int			(*sk_fill_write_queue)(struct sock *sk,
+						       unsigned int mss_now);
 	void			(*sk_destroy_cb)(struct sock *sk);
 #endif
 	void			(*sk_error_report)(struct sock *sk);
