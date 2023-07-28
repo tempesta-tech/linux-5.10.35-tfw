@@ -734,7 +734,6 @@ struct sk_buff {
                                 struct {
                                         __u8    present : 1;
                                         __u8    tls_type : 7;
-                                        __u16   flags : 16;
                                         unsigned int cb;
                                 } tfw_cb;
 #endif
@@ -951,27 +950,6 @@ struct sk_buff {
 #define SKB_ALLOC_NAPI		0x04
 
 #ifdef CONFIG_SECURITY_TEMPESTA
-enum {
-	/* This skb contains start of http2 frame. */
-	SS_F_HTTP2_FRAME_START                  = 0x01,
-	/* This skb contains new hpack dynamic table size. */
-	SS_F_HTTT2_HPACK_TBL_SZ_ENCODED         = 0x02,
-	/* This skb contains headers frame. */
-	SS_F_HTTT2_FRAME_HEADERS                = 0x04,
-	/* This skb contains data frame. */
-	SS_F_HTTT2_FRAME_DATA                   = 0x08,
-	/* This skb was already prepared. */
-	SS_F_HTTP2_FRAME_PREPARED               = 0x10,
-	/* This skb acks new hpack dynamic tbl size. */
-	SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING   = 0x20,
-	/*
-	 * These flags should be cleared when we copy flags
-	 * from one skb to another one.
-	 */
-	TEMPESTA_SKB_FLAG_CLEAR_MASK	= SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING |
-					  SS_F_HTTT2_HPACK_TBL_SZ_ENCODED |
-					  SS_F_HTTP2_FRAME_START,
-};
 
 static inline unsigned long
 skb_tfw_is_present(struct sk_buff *skb)
@@ -991,25 +969,6 @@ static inline unsigned char
 skb_tfw_tls_type(struct sk_buff *skb)
 {
 	return skb->tfw_cb.present ? skb->tfw_cb.tls_type : 0;
-}
-
-static inline void
-skb_set_tfw_flags(struct sk_buff *skb, unsigned short flags)
-{
-        skb->tfw_cb.present = 1;
-        skb->tfw_cb.flags |= flags;
-}
-
-static inline void
-skb_clear_tfw_flag(struct sk_buff *skb, unsigned short flag)
-{
-        skb->tfw_cb.flags &= ~flag;
-}
-
-static inline unsigned short
-skb_tfw_flags(struct sk_buff *skb)
-{
-        return skb->tfw_cb.present ? skb->tfw_cb.flags : 0;
 }
 
 static inline void
