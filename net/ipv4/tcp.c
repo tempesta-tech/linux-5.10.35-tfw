@@ -4073,10 +4073,6 @@ void tcp_done(struct sock *sk)
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		sk->sk_state_change(sk);
 	} else {
-#ifdef CONFIG_SECURITY_TEMPESTA
-		if (sk->sk_destroy_cb)
-			sk->sk_destroy_cb(sk);
-#endif
 		inet_csk_destroy_sock(sk);
 	}
 }

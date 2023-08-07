@@ -514,7 +514,6 @@ struct sock {
 	int			(*sk_fill_write_queue)(struct sock *sk,
 						       unsigned int mss_now,
 						       bool with_limit);
-	void			(*sk_destroy_cb)(struct sock *sk);
 #endif
 	void			(*sk_error_report)(struct sock *sk);
 	int			(*sk_backlog_rcv)(struct sock *sk,
