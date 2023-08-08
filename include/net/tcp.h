@@ -1879,7 +1879,11 @@ static inline void tcp_rtx_queue_unlink_and_free(struct sk_buff *skb, struct soc
 
 static inline void tcp_push_pending_frames(struct sock *sk)
 {
+#ifdef CONFIG_SECURITY_TEMPESTA
+	if (tcp_send_head(sk) || sock_flag(sk, SOCK_TEMPESTA_HAS_DATA)) {
+#else
 	if (tcp_send_head(sk)) {
+#endif
 		struct tcp_sock *tp = tcp_sk(sk);
 
 		__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
