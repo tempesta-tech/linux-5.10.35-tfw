@@ -734,7 +734,6 @@ struct sk_buff {
                                 struct {
                                         __u8    present : 1;
                                         __u8    tls_type : 7;
-                                        unsigned int cb;
                                 } tfw_cb;
 #endif
 			};
@@ -952,6 +951,13 @@ struct sk_buff {
 #ifdef CONFIG_SECURITY_TEMPESTA
 long __get_skb_count(void);
 
+struct skb_tfw_cb {
+        void *ptr;
+        bool present;
+};
+
+#define SKB_TFW_CB(skb) ((struct skb_tfw_cb *)((skb)->cb))
+
 static inline unsigned long
 skb_tfw_is_present(struct sk_buff *skb)
 {
@@ -973,16 +979,16 @@ skb_tfw_tls_type(struct sk_buff *skb)
 }
 
 static inline void
-skb_set_tfw_cb(struct sk_buff *skb, unsigned int cb)
+skb_set_tfw_cb_ptr(struct sk_buff *skb, void *ptr)
 {
-        skb->tfw_cb.present = 1;
-        skb->tfw_cb.cb = cb;
+        SKB_TFW_CB(skb)->ptr = ptr;
+        SKB_TFW_CB(skb)->present = true;
 }
 
-static inline unsigned int
-skb_tfw_cb(struct sk_buff *skb)
+static inline void *
+skb_get_tfw_cb_ptr(struct sk_buff *skb)
 {
-        return skb->tfw_cb.present ? skb->tfw_cb.cb : 0;
+      return SKB_TFW_CB(skb)->present ? SKB_TFW_CB(skb)->ptr : NULL;
 }
 
 static inline void
@@ -997,6 +1003,8 @@ skb_clear_tfw_cb(struct sk_buff *skb)
 	WARN_ON_ONCE(!skb->tfw_cb.present);
 	skb->dev = NULL;
 }
+
+#undef SKB_TFW_CB
 
 #endif
 
