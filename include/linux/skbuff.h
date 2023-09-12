@@ -731,11 +731,10 @@ struct sk_buff {
 				 */
 				unsigned long		dev_scratch;
 #ifdef CONFIG_SECURITY_TEMPESTA
-                                struct {
-                                        __u8    present : 1;
-                                        __u8    tls_type : 7;
-                                        unsigned int cb;
-                                } tfw_cb;
+				struct {
+					__u8		present : 1;
+					__u8		tls_type : 7;
+				} tfw_cb;
 #endif
 			};
 		};
@@ -805,7 +804,7 @@ struct sk_buff {
 	__u8			active_extensions;
 #endif
 #ifdef CONFIG_SECURITY_TEMPESTA
-        __u8                    tail_lock:1;
+	__u8			tail_lock:1;
 #endif
 	/* fields enclosed in headers_start/headers_end are copied
 	 * using a single memcpy() in __copy_skb_header()
@@ -960,28 +959,15 @@ skb_tfw_is_present(struct sk_buff *skb)
 static inline void
 skb_set_tfw_tls_type(struct sk_buff *skb, unsigned char tls_type)
 {
-        BUG_ON(tls_type > 0x7F);
-        skb->tfw_cb.present = 1;
-        skb->tfw_cb.tls_type = tls_type;
+	BUG_ON(tls_type > 0x7F);
+	skb->tfw_cb.present = 1;
+	skb->tfw_cb.tls_type = tls_type;
 }
 
 static inline unsigned char
 skb_tfw_tls_type(struct sk_buff *skb)
 {
 	return skb->tfw_cb.present ? skb->tfw_cb.tls_type : 0;
-}
-
-static inline void
-skb_set_tfw_cb(struct sk_buff *skb, unsigned int cb)
-{
-        skb->tfw_cb.present = 1;
-        skb->tfw_cb.cb = cb;
-}
-
-static inline unsigned int
-skb_tfw_cb(struct sk_buff *skb)
-{
-        return skb->tfw_cb.present ? skb->tfw_cb.cb : 0;
 }
 
 static inline void
