@@ -1383,6 +1383,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	 * so there is no appropriate security hook.
 	 */
 	if (tempesta_new_clntsk(newsk)) {
+		tcp_v6_send_reset(newsk, skb);
 		inet_csk_prepare_forced_close(newsk);
 		tcp_done(newsk);
 		goto out;
