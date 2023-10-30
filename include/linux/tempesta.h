@@ -26,7 +26,7 @@
 typedef void (*TempestaTxAction)(void);
 
 typedef struct {
-	int (*sk_alloc)(struct sock *sk);
+	int (*sk_alloc)(struct sock *sk, struct sk_buff *skb);
 	void (*sk_free)(struct sock *sk);
 	int (*sock_tcp_rcv)(struct sock *sk, struct sk_buff *skb);
 } TempestaOps;
@@ -37,7 +37,7 @@ typedef struct {
 } TempestaMapping;
 
 /* Security hooks. */
-int tempesta_new_clntsk(struct sock *newsk);
+int tempesta_new_clntsk(struct sock *newsk, struct sk_buff *skb);
 void tempesta_register_ops(TempestaOps *tops);
 void tempesta_unregister_ops(TempestaOps *tops);
 

@@ -61,7 +61,7 @@ tempesta_unregister_ops(TempestaOps *tops)
 EXPORT_SYMBOL(tempesta_unregister_ops);
 
 int
-tempesta_new_clntsk(struct sock *newsk)
+tempesta_new_clntsk(struct sock *newsk, struct sk_buff *skb)
 {
 	int r = 0;
 
@@ -73,7 +73,7 @@ tempesta_new_clntsk(struct sock *newsk)
 
 	tops = rcu_dereference(tempesta_ops);
 	if (likely(tops))
-		r = tops->sk_alloc(newsk);
+		r = tops->sk_alloc(newsk, skb);
 
 	rcu_read_unlock();
 
