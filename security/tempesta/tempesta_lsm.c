@@ -2,7 +2,7 @@
  *		Tempesta FW
  *
  * Copyright (C) 2014 NatSys Lab. (info@natsys-lab.com).
- * Copyright (C) 2015-2022 Tempesta Technologies, Inc.
+ * Copyright (C) 2015-2023 Tempesta Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -81,23 +81,6 @@ tempesta_new_clntsk(struct sock *newsk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(tempesta_new_clntsk);
 
-static void
-tempesta_sk_free(struct sock *sk)
-{
-	TempestaOps *tops;
-
-	if (!sk->sk_security)
-		return;
-
-	rcu_read_lock();
-
-	tops = rcu_dereference(tempesta_ops);
-	if (likely(tops))
-		tops->sk_free(sk);
-
-	rcu_read_unlock();
-}
-
 static int
 tempesta_sock_tcp_rcv(struct sock *sk, struct sk_buff *skb)
 {
@@ -118,7 +101,6 @@ tempesta_sock_tcp_rcv(struct sock *sk, struct sk_buff *skb)
 }
 
 static struct security_hook_list tempesta_hooks[] __read_mostly = {
-	LSM_HOOK_INIT(sk_free_security, tempesta_sk_free),
 	LSM_HOOK_INIT(socket_sock_rcv_skb, tempesta_sock_tcp_rcv),
 };
 
