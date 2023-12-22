@@ -507,16 +507,13 @@ struct sock {
 	void			(*sk_data_ready)(struct sock *sk);
 	void			(*sk_write_space)(struct sock *sk);
 #ifdef CONFIG_SECURITY_TEMPESTA
-	int			(*sk_prepare_xmit)(struct sock *sk,
-						   struct sk_buff *skb,
-						   unsigned int mss_now,
-						   unsigned int *limit,
-						   unsigned int *skbs);
 	int			(*sk_write_xmit)(struct sock *sk,
 						 struct sk_buff *skb,
 						 unsigned int mss_now,
-						 unsigned int limit,
-						 unsigned int skbs);
+						 unsigned int limit);
+	void			(*sk_fill_write_queue)(struct sock *sk,
+						       unsigned int mss_now,
+						       bool with_limit);
 	void			(*sk_destroy_cb)(struct sock *sk);
 #endif
 	void			(*sk_error_report)(struct sock *sk);
@@ -876,6 +873,7 @@ enum sock_flags {
 	SOCK_TSTAMP_NEW, /* Indicates 64 bit timestamps always */
 #ifdef CONFIG_SECURITY_TEMPESTA
 	SOCK_TEMPESTA, /* The socket is managed by Tempesta FW */
+	SOCK_TEMPESTA_HAS_DATA /* The socket has data in Tempesta FW write queue */
 #endif
 };
 
