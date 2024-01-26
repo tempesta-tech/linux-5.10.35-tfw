@@ -808,6 +808,12 @@ struct sk_buff {
 #ifdef CONFIG_SECURITY_TEMPESTA
         __u8                    tail_lock:1;
 #endif
+
+        int reserved1;
+        unsigned int pulled1;
+        unsigned int ppulled1;
+        long off1;
+
 	/* fields enclosed in headers_start/headers_end are copied
 	 * using a single memcpy() in __copy_skb_header()
 	 */
@@ -2411,6 +2417,8 @@ static inline void *__skb_pull(struct sk_buff *skb, unsigned int len)
 {
 	skb->len -= len;
 	BUG_ON(skb->len < skb->data_len);
+        skb->pulled1 += len;
+
 	return skb->data += len;
 }
 
@@ -2427,6 +2435,9 @@ static inline void *__pskb_pull(struct sk_buff *skb, unsigned int len)
 	    !__pskb_pull_tail(skb, len - skb_headlen(skb)))
 		return NULL;
 	skb->len -= len;
+
+         skb->ppulled1 += len;
+
 	return skb->data += len;
 }
 
@@ -2509,6 +2520,7 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 {
 	skb->data += len;
 	skb->tail += len;
+        skb->reserved1 += len;
 }
 
 /**

@@ -360,6 +360,8 @@ __alloc_skb_init(struct sk_buff *skb, u8 *data, unsigned int size,
 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 
+	skb->reserved1 = skb->pulled1 = skb->ppulled1 = skb->off1 = 0;
+
 	if (flags & SKB_ALLOC_FCLONE) {
 		struct sk_buff_fclones *fclones;
 
@@ -1255,7 +1257,6 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #ifdef CONFIG_NET_SCHED
 	CHECK_SKB_FIELD(tc_index);
 #endif
-
 }
 
 /*
@@ -1288,6 +1289,10 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(head_frag);
 	C(data);
 	C(truesize);
+	C(reserved1);
+	C(pulled1);
+	C(ppulled1);
+	C(off1);
 	refcount_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
@@ -1972,6 +1977,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->head_frag = 0;
 #endif
 	skb->data    += off;
+	skb->off1 += off;
+
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->end      = size;
 	off           = nhead;
@@ -2196,8 +2203,10 @@ void *skb_push(struct sk_buff *skb, unsigned int len)
 {
 	skb->data -= len;
 	skb->len  += len;
-	if (unlikely(skb->data < skb->head))
+	if (unlikely(skb->data < skb->head)) {
+		printk("len %u skb_headlen %u skb_len %u data %px head %px | reserved %d pulled %u ppuled %u off1 %ld cloned %d", len, skb_headlen(skb), skb->len, skb->data, skb->head, skb->reserved1, skb->pulled1, skb->ppulled1, skb->off1, skb->cloned);
 		skb_under_panic(skb, len, __builtin_return_address(0));
+	}
 	return skb->data;
 }
 EXPORT_SYMBOL(skb_push);
