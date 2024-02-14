@@ -530,6 +530,15 @@ packet_routed:
 
 	/* TODO : should we use skb->sk here instead of sk ? */
 	skb->priority = sk->sk_priority;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	/*
+	 * Tempesta can set skb->mark for some skbs. And moreover
+	 * sk_mark is never set for Tempesta sockets.
+	 */
+	if (sock_flag(sk, SOCK_TEMPESTA))
+		WARN_ON_ONCE(sk->sk_mark);
+	else
+#endif
 	skb->mark = sk->sk_mark;
 
 	res = ip_local_out(net, sk, skb);

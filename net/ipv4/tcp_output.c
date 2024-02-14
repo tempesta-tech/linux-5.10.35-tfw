@@ -1611,6 +1611,9 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 	nlen = skb->len - len - nsize;
 	buff->truesize += nlen;
 	skb->truesize -= nlen;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	buff->mark = skb->mark;
+#endif
 
 	/* Correct the sequence numbers. */
 	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(skb)->seq + len;
@@ -2166,6 +2169,9 @@ int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 	sk_mem_charge(sk, buff->truesize);
 	buff->truesize += nlen;
 	skb->truesize -= nlen;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	buff->mark = skb->mark;
+#endif
 
 	/* Correct the sequence numbers. */
 	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(skb)->seq + len;
@@ -2342,8 +2348,11 @@ static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 		if (unlikely(TCP_SKB_CB(skb)->eor) || tcp_has_tx_tstamp(skb))
 			return false;
 #ifdef CONFIG_SECURITY_TEMPESTA
-		/* Do not coalesce tempesta and not tempesta skbs. */
-		if (skb_tfw_tls_type(skb))
+		/* Do not coalesce tempesta skbs with tls type or set mark. */
+		if ((next != ((struct sk_buff *)&(sk)->sk_write_queue))
+		    && ((skb_tfw_tls_type(skb) != skb_tfw_tls_type(next))
+			|| (sock_flag(sk, SOCK_TEMPESTA)
+			    && (skb->mark != next->mark))))
 			return false;
 #endif
 
