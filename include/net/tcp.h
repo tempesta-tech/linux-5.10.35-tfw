@@ -1879,9 +1879,22 @@ static inline void tcp_rtx_queue_unlink_and_free(struct sk_buff *skb, struct soc
 
 static inline void tcp_push_pending_frames(struct sock *sk)
 {
+#ifdef CONFIG_SECURITY_TEMPESTA
+	unsigned int mss_now = 0;
+	if (sock_flag(sk, SOCK_TEMPESTA_HAS_DATA)
+	    && sk->sk_fill_write_queue) {
+		mss_now = tcp_current_mss(sk);
+		sk->sk_fill_write_queue(sk, mss_now, true);
+	}
+#endif
 	if (tcp_send_head(sk)) {
 		struct tcp_sock *tp = tcp_sk(sk);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+		if (mss_now != 0)
+			__tcp_push_pending_frames(sk, mss_now, tp->nonagle);
+		else
+#endif
 		__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
 	}
 }
