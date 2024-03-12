@@ -4605,7 +4605,7 @@ void __init skb_init(void)
 {
 #ifdef CONFIG_SECURITY_TEMPESTA
 	int cpu, l;
-	for_each_possible_cpu(cpu)
+	for_each_online_cpu(cpu)
 		for (l = 0; l < PG_LISTS_N; ++l) {
 			TfwSkbMemPool *pool = per_cpu_ptr(&pg_mpool[l], cpu);
 			INIT_LIST_HEAD(&pool->lh);
