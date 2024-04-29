@@ -966,6 +966,11 @@ enum {
 	SS_F_HTTP2_FRAME_PREPARED               = 0x10,
 	/* This skb acks new hpack dynamic tbl size. */
 	SS_F_HTTP2_ACK_FOR_HPACK_TBL_RESIZING   = 0x20,
+	/* This skb contains trailers. */
+	SS_F_HTTT2_FRAME_TRAILER_HEADERS	= 0x40,
+	/* This skb contains control frame. */
+	SS_F_HTTT2_FRAME_CONTROL		= 0x80,
+
 	/*
 	 * These flags should be cleared when we copy flags
 	 * from one skb to another one.
