@@ -2148,8 +2148,8 @@ static bool tcp_snd_wnd_test(const struct tcp_sock *tp,
  * know that all the data is in scatter-gather pages, and that the
  * packet has never been sent out before (and thus is not cloned).
  */
-int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
-		 unsigned int mss_now, gfp_t gfp)
+static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
+			unsigned int mss_now, gfp_t gfp)
 {
 	int nlen = skb->len - len;
 	struct sk_buff *buff;
@@ -2202,7 +2202,6 @@ int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 
 	return 0;
 }
-EXPORT_SYMBOL(tso_fragment);
 
 /* Try to defer sending, if possible, in order to minimize the amount
  * of TSO splitting we do.  View it as a kind of TSO Nagle test.
@@ -2655,21 +2654,6 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
-/**
- * This function is similar to `tcp_write_err` except that we send
- * TCP RST to remote peer.  We call this function when an error occurs
- * while sending data from which we cannot recover, so we close the
- * connection with TCP RST.
- */
-static void
-tcp_tfw_handle_error(struct sock *sk, int error)
-{
-	tcp_send_active_reset(sk, GFP_ATOMIC);
-	sk->sk_err = error;
-	sk->sk_error_report(sk);
-	tcp_write_queue_purge(sk);
-	tcp_done(sk);
-}
 #endif
 
 /* This routine writes packets to the network.  It advances the
