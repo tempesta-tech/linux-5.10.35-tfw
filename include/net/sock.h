@@ -511,7 +511,7 @@ struct sock {
 						 struct sk_buff *skb,
 						 unsigned int mss_now,
 						 unsigned int limit);
-	void			(*sk_fill_write_queue)(struct sock *sk,
+	int			(*sk_fill_write_queue)(struct sock *sk,
 						       unsigned int mss_now,
 						       bool with_limit);
 	void			(*sk_destroy_cb)(struct sock *sk);
