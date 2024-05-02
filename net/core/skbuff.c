@@ -454,6 +454,13 @@ nodata:
  */
 static DEFINE_PER_CPU(long, __skb_cnt) ____cacheline_aligned = 0;
 
+void
+__del_skb_count(void)
+{
+	--*this_cpu_ptr(&__skb_cnt);
+}
+EXPORT_SYMBOL(__del_skb_count);
+
 long
 __get_skb_count(void)
 {

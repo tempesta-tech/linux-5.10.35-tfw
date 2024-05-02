@@ -6106,6 +6106,7 @@ static void napi_skb_free_stolen_head(struct sk_buff *skb)
 	else
 #endif
 	kmem_cache_free(skbuff_head_cache, skb);
+	__del_skb_count();
 }
 
 static gro_result_t napi_skb_finish(struct napi_struct *napi,
