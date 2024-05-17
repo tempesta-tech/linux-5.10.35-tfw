@@ -38,6 +38,7 @@ typedef struct {
 
 /* Security hooks. */
 int tempesta_new_clntsk(struct sock *newsk, struct sk_buff *skb);
+void tempesta_close_clntsk(struct sock *sk);
 void tempesta_register_ops(TempestaOps *tops);
 void tempesta_unregister_ops(TempestaOps *tops);
 
