@@ -39,9 +39,6 @@
 
 #include <net/tcp.h>
 #include <net/mptcp.h>
-#ifdef CONFIG_SECURITY_TEMPESTA
-#include <net/tls.h>
-#endif
 
 #include <linux/compiler.h>
 #include <linux/gfp.h>
@@ -1527,9 +1524,6 @@ static void tcp_insert_write_queue_after(struct sk_buff *skb,
 					 struct sock *sk,
 					 enum tcp_queue tcp_queue)
 {
-#ifdef CONFIG_SECURITY_TEMPESTA
-	skb_copy_tfw_cb(buff, skb);
-#endif
 	if (tcp_queue == TCP_FRAG_IN_WRITE_QUEUE)
 		__skb_queue_after(&sk->sk_write_queue, skb, buff);
 	else
@@ -2349,9 +2343,8 @@ static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 #ifdef CONFIG_SECURITY_TEMPESTA
 		/* Do not coalesce tempesta skbs with tls type or set mark. */
 		if ((next != ((struct sk_buff *)&(sk)->sk_write_queue))
-		    && ((skb_tfw_tls_type(skb) != skb_tfw_tls_type(next))
-			|| (sock_flag(sk, SOCK_TEMPESTA)
-			    && (skb->mark != next->mark))))
+		    && ((sock_flag(sk, SOCK_TEMPESTA)
+			 && (skb->mark != next->mark))))
 			return false;
 #endif
 
@@ -2628,34 +2621,6 @@ void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type)
 		tcp_chrono_set(tp, TCP_CHRONO_BUSY);
 }
 
-#ifdef CONFIG_SECURITY_TEMPESTA
-
-/**
- * The next funtion is called from places: from `tcp_write_xmit`
- * (a usual case) and from `tcp_write_wakeup`. In other places where
- * `tcp_transmit_skb` is called we deal with special TCP skbs or skbs
- * not from tcp send queue.
- */
-static int
-tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
-		      unsigned int mss_now, unsigned int limit)
-{
-	int result;
-
-	if (!sk->sk_write_xmit || !skb_tfw_tls_type(skb))
-		return 0;
-
-	result = sk->sk_write_xmit(sk, skb, mss_now, limit);
-	if (unlikely(result))
-		return result;
-
-	/* Fix up TSO segments after TLS overhead. */
-	tcp_set_skb_tso_segs(skb, mss_now);
-	return 0;
-}
-
-#endif
-
 /* This routine writes packets to the network.  It advances the
  * send_head.  This happens as incoming acks open up the remote
  * window for us.
@@ -2745,20 +2710,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 							  cwnd_quota,
 							  max_segs),
 						    nonagle);
-#ifdef CONFIG_SECURITY_TEMPESTA
-		if (sk->sk_write_xmit && skb_tfw_tls_type(skb)) {
-			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
-			    net_warn_ratelimited("%s: too small MSS %u"
-						 " for TLS\n",
-						 __func__, mss_now);
-				break;
-			}
-			if (limit > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)
-				limit = TLS_MAX_PAYLOAD_SIZE;
-			else
-				limit -= TLS_MAX_OVERHEAD;
-		}
-#endif
+
 		if (skb->len > limit &&
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
@@ -2773,15 +2725,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		 */
 		if (TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq)
 			break;
-#ifdef CONFIG_SECURITY_TEMPESTA
-		result = tcp_tfw_sk_write_xmit(sk, skb, mss_now, limit);
-		if (unlikely(result)) {
-			if (result == -ENOMEM)
-				break; /* try again next time */
-			tcp_tfw_handle_error(sk, result);
-			return false;
-		}
-#endif
+
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
 			break;
 
@@ -4140,20 +4084,6 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 		if (before(tp->pushed_seq, TCP_SKB_CB(skb)->end_seq))
 			tp->pushed_seq = TCP_SKB_CB(skb)->end_seq;
 
-#ifdef CONFIG_SECURITY_TEMPESTA
-		if (sk->sk_write_xmit && skb_tfw_tls_type(skb)) {
-			if (unlikely(seg_size <= TLS_MAX_OVERHEAD)) {
-				net_warn_ratelimited("%s: too small MSS %u"
-						     " for TLS\n",
-						     __func__, mss);
-				return -ENOMEM;
-			}
-			if (seg_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)
-				seg_size = TLS_MAX_PAYLOAD_SIZE;
-			else
-				seg_size -= TLS_MAX_OVERHEAD;
-		}
-#endif
 		/* We are probing the opening of a window
 		 * but the window size is != 0
 		 * must have been a result SWS avoidance ( sender )
@@ -4169,16 +4099,6 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 			tcp_set_skb_tso_segs(skb, mss);
 
 		TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_PSH;
-
-#ifdef CONFIG_SECURITY_TEMPESTA
-		err = tcp_tfw_sk_write_xmit(sk, skb, mss, seg_size);
-		if (unlikely(err)) {
-			if (err != -ENOMEM)
-				tcp_tfw_handle_error(sk, err);
-			return err;
-		}
-#endif
-
 		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 		if (!err)
 			tcp_event_new_data_sent(sk, skb);

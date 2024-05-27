@@ -730,12 +730,6 @@ struct sk_buff {
 				 * UDP receive path is one user.
 				 */
 				unsigned long		dev_scratch;
-#ifdef CONFIG_SECURITY_TEMPESTA
-				struct {
-					__u8		present : 1;
-					__u8		tls_type : 7;
-				} tfw_cb;
-#endif
 			};
 		};
 		struct rb_node		rbnode; /* used in netem, ip4 defrag, and tcp stack */
@@ -950,40 +944,6 @@ struct sk_buff {
 
 #ifdef CONFIG_SECURITY_TEMPESTA
 long __get_skb_count(void);
-
-static inline unsigned long
-skb_tfw_is_present(struct sk_buff *skb)
-{
-	return skb->tfw_cb.present;
-}
-
-static inline void
-skb_set_tfw_tls_type(struct sk_buff *skb, unsigned char tls_type)
-{
-	BUG_ON(tls_type > 0x7F);
-	skb->tfw_cb.present = 1;
-	skb->tfw_cb.tls_type = tls_type;
-}
-
-static inline unsigned char
-skb_tfw_tls_type(struct sk_buff *skb)
-{
-	return skb->tfw_cb.present ? skb->tfw_cb.tls_type : 0;
-}
-
-static inline void
-skb_copy_tfw_cb(struct sk_buff *dst, struct sk_buff *src)
-{
-	dst->dev = src->dev;
-}
-
-static inline void
-skb_clear_tfw_cb(struct sk_buff *skb)
-{
-	WARN_ON_ONCE(!skb->tfw_cb.present);
-	skb->dev = NULL;
-}
-
 #endif
 
 /**
