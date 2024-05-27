@@ -2638,12 +2638,22 @@ void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type)
  */
 static int
 tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
-		      unsigned int mss_now, unsigned int limit)
+		      unsigned int mss_now)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned int in_flight = tcp_packets_in_flight(tp);
+	unsigned int send_win, cong_win;
+	unsigned int limit;
 	int result;
 
 	if (!sk->sk_write_xmit || !skb_tfw_tls_type(skb))
 		return 0;
+
+	/* Should be checked early. */
+	BUG_ON(after(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)));
+	cong_win = (tp->snd_cwnd - in_flight) * mss_now;
+	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
+	limit = min3(cong_win, send_win, TLS_MAX_PAYLOAD_SIZE);
 
 	result = sk->sk_write_xmit(sk, skb, mss_now, limit);
 	if (unlikely(result))
@@ -2774,7 +2784,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		if (TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq)
 			break;
 #ifdef CONFIG_SECURITY_TEMPESTA
-		result = tcp_tfw_sk_write_xmit(sk, skb, mss_now, limit);
+		result = tcp_tfw_sk_write_xmit(sk, skb, mss_now);
 		if (unlikely(result)) {
 			if (result == -ENOMEM)
 				break; /* try again next time */
@@ -4171,7 +4181,7 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 		TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_PSH;
 
 #ifdef CONFIG_SECURITY_TEMPESTA
-		err = tcp_tfw_sk_write_xmit(sk, skb, mss, seg_size);
+		err = tcp_tfw_sk_write_xmit(sk, skb, mss);
 		if (unlikely(err)) {
 			if (err != -ENOMEM)
 				tcp_tfw_handle_error(sk, err);
