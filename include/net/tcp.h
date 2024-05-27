@@ -1904,7 +1904,7 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 		int result;
 
 		mss_now = tcp_current_mss(sk);
-		result = sk->sk_fill_write_queue(sk, mss_now, true);
+		result = sk->sk_fill_write_queue(sk, mss_now);
 		if (unlikely(result < 0 && result != -ENOMEM)) {
 			tcp_tfw_handle_error(sk, result);
 			return;
