@@ -1915,9 +1915,10 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 		struct tcp_sock *tp = tcp_sk(sk);
 
 #ifdef CONFIG_SECURITY_TEMPESTA
-		if (mss_now != 0)
-			__tcp_push_pending_frames(sk, mss_now, tp->nonagle);
-		else
+		if (mss_now != 0) {
+			int nonagle = TCP_NAGLE_OFF | TCP_NAGLE_PUSH;
+			__tcp_push_pending_frames(sk, mss_now, nonagle);
+		} else
 #endif
 		__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
 	}
