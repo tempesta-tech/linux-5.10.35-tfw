@@ -158,6 +158,9 @@ void tcp_cwnd_restart(struct sock *sk, s32 delta)
 	tp->snd_cwnd_stamp = tcp_jiffies32;
 	tp->snd_cwnd_used = 0;
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
+EXPORT_SYMBOL(tcp_cwnd_restart);
+#endif
 
 /* Congestion state accounting after a packet has been sent. */
 static void tcp_event_data_sent(struct tcp_sock *tp,
@@ -2653,7 +2656,7 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	BUG_ON(after(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)));
 	cong_win = (tp->snd_cwnd - in_flight) * mss_now;
 	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
-	limit = min3(cong_win, send_win, TLS_MAX_PAYLOAD_SIZE);
+	limit = min3(cong_win, send_win, (unsigned int)TLS_MAX_PAYLOAD_SIZE);
 
 	result = sk->sk_write_xmit(sk, skb, mss_now, limit);
 	if (unlikely(result))
