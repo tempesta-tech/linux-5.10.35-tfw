@@ -951,8 +951,6 @@ struct sk_buff {
 #define SKB_ALLOC_NAPI		0x04
 
 #ifdef CONFIG_SECURITY_TEMPESTA
-long __get_skb_count(void);
-
 enum {
 	/* This skb contains start of http2 frame. */
 	SS_F_HTTP2_FRAME_START                  = 0x01,
