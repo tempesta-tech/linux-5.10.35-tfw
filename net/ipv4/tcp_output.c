@@ -2667,6 +2667,14 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
+#define TFW_ADJUST_TLS_OVERHEAD(max_size)			\
+do {								\
+	if (max_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)	\
+		max_size = TLS_MAX_PAYLOAD_SIZE;		\
+	else							\
+		max_size -= TLS_MAX_OVERHEAD;			\
+} while(0)
+
 #endif
 
 /* This routine writes packets to the network.  It advances the
@@ -2766,10 +2774,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 						 __func__, mss_now);
 				break;
 			}
-			if (limit > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)
-				limit = TLS_MAX_PAYLOAD_SIZE;
-			else
-				limit -= TLS_MAX_OVERHEAD;
+			TFW_ADJUST_TLS_OVERHEAD(limit);
 		}
 #endif
 		if (skb->len > limit &&
@@ -4153,20 +4158,6 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 		if (before(tp->pushed_seq, TCP_SKB_CB(skb)->end_seq))
 			tp->pushed_seq = TCP_SKB_CB(skb)->end_seq;
 
-#ifdef CONFIG_SECURITY_TEMPESTA
-		if (sk->sk_write_xmit && skb_tfw_tls_type(skb)) {
-			if (unlikely(seg_size <= TLS_MAX_OVERHEAD)) {
-				net_warn_ratelimited("%s: too small MSS %u"
-						     " for TLS\n",
-						     __func__, mss);
-				return -ENOMEM;
-			}
-			if (seg_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)
-				seg_size = TLS_MAX_PAYLOAD_SIZE;
-			else
-				seg_size -= TLS_MAX_OVERHEAD;
-		}
-#endif
 		/* We are probing the opening of a window
 		 * but the window size is != 0
 		 * must have been a result SWS avoidance ( sender )
@@ -4174,6 +4165,17 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 		if (seg_size < TCP_SKB_CB(skb)->end_seq - TCP_SKB_CB(skb)->seq ||
 		    skb->len > mss) {
 			seg_size = min(seg_size, mss);
+#ifdef CONFIG_SECURITY_TEMPESTA
+			if (sk->sk_write_xmit && skb_tfw_tls_type(skb)) {
+				if (unlikely(seg_size <= TLS_MAX_OVERHEAD)) {
+					net_warn_ratelimited("%s: too small"
+							     " MSS %u for TLS\n",
+							     __func__, mss);
+					return -ENOMEM;
+				}
+				TFW_ADJUST_TLS_OVERHEAD(seg_size);
+			}
+#endif
 			TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_PSH;
 			if (tcp_fragment(sk, TCP_FRAG_IN_WRITE_QUEUE,
 					 skb, seg_size, mss, GFP_ATOMIC))
