@@ -2656,6 +2656,14 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	BUG_ON(after(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)));
 	cong_win = (tp->snd_cwnd - in_flight) * mss_now;
 	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
+	/*
+	 * A receive side doesn’t start to process a TLS recod until
+	 * it’s fully read from a socket. Too small record size causes
+	 * too much overhead. On the other side too large record size
+	 * can lead to significant delays on receive side if current
+	 * TCP congestion and/or the receiver’s advertised window are
+	 * smaller than a TLS record size.
+	 */
 	limit = min3(cong_win, send_win, (unsigned int)TLS_MAX_PAYLOAD_SIZE);
 
 	result = sk->sk_write_xmit(sk, skb, mss_now, limit);
@@ -2667,6 +2675,12 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
+/*
+ * We should recalculate max_size, and split skb according
+ * new limit, because we add extra TLS_MAX_OVERHEAD bytes
+ * during tls encription. If we don't adjust it, we push
+ * skb with incorrect length to network.
+ */
 #define TFW_ADJUST_TLS_OVERHEAD(max_size)			\
 do {								\
 	if (max_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)	\
