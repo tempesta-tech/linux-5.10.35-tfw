@@ -81,6 +81,21 @@ tempesta_new_clntsk(struct sock *newsk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(tempesta_new_clntsk);
 
+void
+tempesta_close_clntsk(struct sock *sk)
+{
+	TempestaOps *tops;
+
+	rcu_read_lock();
+
+	tops = rcu_dereference(tempesta_ops);
+	if (likely(tops))
+		tops->sk_free(sk);
+
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(tempesta_close_clntsk);
+
 static int
 tempesta_sock_tcp_rcv(struct sock *sk, struct sk_buff *skb)
 {

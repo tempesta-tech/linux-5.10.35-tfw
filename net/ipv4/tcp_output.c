@@ -2683,6 +2683,22 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	tcp_set_skb_tso_segs(skb, mss_now);
 	return 0;
 }
+
+/**
+ * This function is similar to `tcp_write_err` except that we send
+ * TCP RST to remote peer.  We call this function when an error occurs
+ * while sending data from which we cannot recover, so we close the
+ * connection with TCP RST.
+ */
+static void
+tcp_tfw_handle_error(struct sock *sk, int error)
+{
+	tcp_send_active_reset(sk, GFP_ATOMIC);
+	sk->sk_err = error;
+	sk->sk_error_report(sk);
+	tcp_write_queue_purge(sk);
+	tcp_done(sk);
+}
 #endif
 
 /* This routine writes packets to the network.  It advances the
@@ -2783,6 +2799,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		if (unlikely(result)) {
 			if (result == -ENOMEM)
 				break; /* try again next time */
+			tcp_tfw_handle_error(sk, result);
 			return false;
 		}
 #endif
@@ -2805,6 +2822,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		if (unlikely(result)) {
 			if (result == -ENOMEM)
 				break; /* try again next time */
+			tcp_tfw_handle_error(sk, result);
 			return false;
 		}
 #endif
@@ -4171,8 +4189,11 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 
 #ifdef CONFIG_SECURITY_TEMPESTA
 		err = tcp_tfw_sk_prepare_xmit(sk, skb, mss, &seg_size, &nskbs);
-		if (unlikely(err))
+		if (unlikely(err)) {
+			if (err != -ENOMEM)
+				tcp_tfw_handle_error(sk, err);
 			return err;
+		}
 #endif
 
 		/* We are probing the opening of a window
@@ -4193,8 +4214,11 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 
 #ifdef CONFIG_SECURITY_TEMPESTA
 		err = tcp_tfw_sk_write_xmit(sk, skb, mss, seg_size, nskbs);
-		if (unlikely(err))
+		if (unlikely(err)) {
+			if (err != -ENOMEM)
+				tcp_tfw_handle_error(sk, err);
 			return err;
+		}
 #endif
 
 		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);

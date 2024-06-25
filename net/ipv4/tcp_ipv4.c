@@ -1587,6 +1587,8 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 	 * so there is no appropriate security hook.
 	 */
 	if (tempesta_new_clntsk(newsk, skb)) {
+		tcp_v4_send_reset(newsk, skb);
+		tempesta_close_clntsk(newsk);
 		ireq->aborted = true;
 		goto put_and_exit;
 	}
