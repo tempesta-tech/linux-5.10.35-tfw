@@ -88,6 +88,11 @@ static bool memmap_too_large;
  */
 static u64 mem_limit;
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+static u64 tempesta_dbmem_sz;
+static bool clamped = false;
+#endif
+
 /* Number of immovable memory regions */
 static int num_immovable_mem;
 
@@ -302,6 +307,14 @@ static void handle_mem_options(void)
 		} else if (!strcmp(param, "efi_fake_mem")) {
 			mem_avoid_memmap(PARSE_EFI, val);
 		}
+#ifdef CONFIG_SECURITY_TEMPESTA
+		else if (!strcmp(param, "tempesta_dbmem")) {
+			char *p = val;
+
+			tempesta_dbmem_sz = round_up(memparse(p, &p),
+						     HPAGE_SIZE);
+		}
+#endif
 	}
 
 	free(tmp_cmdline);
@@ -581,6 +594,21 @@ static u64 slots_fetch_random(void)
 	return 0;
 }
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+static unsigned long
+tempesta_clamp_region(u64 size)
+{
+	/* Clamp only one region, it must enough. */
+	if (!clamped && mem_limit > tempesta_dbmem_sz &&
+	    size > tempesta_dbmem_sz) {
+		clamped = true;
+		return size - tempesta_dbmem_sz;
+	}
+
+	return min(size, mem_limit);
+}
+#endif
+
 static void __process_mem_region(struct mem_vector *entry,
 				 unsigned long minimum,
 				 unsigned long image_size)
@@ -590,7 +618,11 @@ static void __process_mem_region(struct mem_vector *entry,
 
 	/* Enforce minimum and memory limit. */
 	region.start = max_t(u64, entry->start, minimum);
+#ifdef CONFIG_SECURITY_TEMPESTA
+	region_end = entry->start + tempesta_clamp_region(entry->size);
+#else
 	region_end = min(entry->start + entry->size, mem_limit);
+#endif
 
 	/* Give up if slot area array is full. */
 	while (slot_area_index < MAX_SLOT_AREA) {
