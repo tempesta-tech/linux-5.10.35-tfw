@@ -5260,10 +5260,10 @@
 	tdfx=		[HW,DRM]
 
 	tempesta_dbmem=	[KNL]
-			Order of 2MB memory blocks reserved on each NUMA node
-			for Tempesta database. Huge pages are used if
-			possible. Minimum value to start Tempesta is 4 (32MB).
-			Default is 8, i.e. 512MB is reserved.
+			Amount of memory reserved on all NUMA nodes for Tempesta
+			database. The amount is divided between NUMA nodes.
+			Huge pages are used if possible. Minimum value to start
+			Tempesta is 32MB per node. Default is 512MB.
 
 	test_suspend=	[SUSPEND][,N]
 			Specify "mem" (for Suspend-to-RAM) or "standby" (for
