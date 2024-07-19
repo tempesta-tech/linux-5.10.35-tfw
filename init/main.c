@@ -822,6 +822,13 @@ static void __init report_meminit(void)
  */
 static void __init mm_init(void)
 {
+#ifdef CONFIG_SECURITY_TEMPESTA
+	/*
+	 * Tempesta: reserve memory at boot stage to get continous address
+	 * space. Do it while memblock is available.
+	 */
+	tempesta_reserve_pages();
+#endif
 	/*
 	 * page_ext requires contiguous pages,
 	 * bigger than MAX_ORDER unless SPARSEMEM.
@@ -830,14 +837,6 @@ static void __init mm_init(void)
 	init_debug_pagealloc();
 	report_meminit();
 	mem_init();
-
-#ifdef CONFIG_SECURITY_TEMPESTA
-	/*
-	 * Tempesta: reserve pages just when zones are initialized
-	 * to get continous address space of huge pages.
-	 */
-	tempesta_reserve_pages();
-#endif
 
 	kmem_cache_init();
 	kmemleak_init();
