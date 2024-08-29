@@ -1176,6 +1176,12 @@ static int __init cryptd_init(void)
 {
 	int err;
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+	spin_lock_init(&skcipher_alg_cache.lock);
+	spin_lock_init(&ahash_alg_cache.lock);
+	spin_lock_init(&aead_alg_cache.lock);
+#endif
+
 	cryptd_wq = alloc_workqueue("cryptd", WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE,
 				    1);
 	if (!cryptd_wq)
