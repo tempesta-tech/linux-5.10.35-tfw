@@ -2808,8 +2808,6 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 #ifdef CONFIG_SECURITY_TEMPESTA
 		result = tcp_tfw_sk_write_xmit(sk, skb, mss_now);
 		if (unlikely(result)) {
-			if (result == -ENOMEM)
-				break; /* try again next time */
 			tcp_tfw_handle_error(sk, result);
 			return false;
 		}
@@ -3507,6 +3505,7 @@ void sk_forced_mem_schedule(struct sock *sk, int size)
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
 		mem_cgroup_charge_skmem(sk->sk_memcg, amt);
 }
+EXPORT_SYMBOL(sk_forced_mem_schedule);
 
 /* Send a FIN. The caller locks the socket for us.
  * We should try to send a FIN packet really hard, but eventually give up.
@@ -4202,8 +4201,7 @@ int tcp_write_wakeup(struct sock *sk, int mib)
 #ifdef CONFIG_SECURITY_TEMPESTA
 		err = tcp_tfw_sk_write_xmit(sk, skb, mss);
 		if (unlikely(err)) {
-			if (err != -ENOMEM)
-				tcp_tfw_handle_error(sk, err);
+			tcp_tfw_handle_error(sk, err);
 			return err;
 		}
 #endif
