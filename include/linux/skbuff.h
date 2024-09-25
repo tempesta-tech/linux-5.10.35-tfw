@@ -451,6 +451,13 @@ enum {
 
 	/* generate software time stamp when entering packet scheduling */
 	SKBTX_SCHED_TSTAMP = 1 << 6,
+#ifdef CONFIG_SECURITY_TEMPESTA
+
+        /* Indicates that Tempesta FW crypto operations are not allowed
+         * in place.
+         */
+        TFW_SKBTX_SHARED_FRAG = 1 << 7,
+#endif
 };
 
 #define SKBTX_ZEROCOPY_FRAG	(SKBTX_DEV_ZEROCOPY | SKBTX_SHARED_FRAG)
