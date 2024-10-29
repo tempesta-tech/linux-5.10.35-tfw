@@ -3181,6 +3181,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
 		u8 sacked = scb->sacked;
 		u32 acked_pcount;
 
+		set_bit(TFW_SKB_FLAG_2, &skb->tfw_flags);
+
 		/* Determine how many packets and what bytes were acked, tso and else */
 		if (after(scb->end_seq, tp->snd_una)) {
 			if (tcp_skb_pcount(skb) == 1 ||
@@ -3444,13 +3446,42 @@ static inline bool tcp_may_update_window(const struct tcp_sock *tp,
 }
 
 /* If we update tp->snd_una, also update tp->bytes_acked */
-static void tcp_snd_una_update(struct tcp_sock *tp, u32 ack)
+void tcp_snd_una_update(struct sock *sk, struct tcp_sock *tp, u32 ack);
+void tcp_snd_una_update(struct sock *sk, struct tcp_sock *tp, u32 ack)
 {
 	u32 delta = ack - tp->snd_una;
+	u32 prev_una = tp->snd_una;
+	struct sk_buff *skb, *next;
 
 	sock_owned_by_me((struct sock *)tp);
 	tp->bytes_acked += delta;
 	tp->snd_una = ack;
+
+	skb = tcp_send_head(sk);
+	if (skb && sock_flag(sk, SOCK_TEMPESTA)) {
+		unsigned int  iii = 0;
+		struct sk_buff *first = skb;
+
+		if (before(TCP_SKB_CB(skb)->end_seq, tp->snd_una)) {
+			set_bit(TFW_SKB_FLAG_28, &skb->tfw_flags);
+			printk(KERN_ALERT "tcp_snd_una_update BBB %px %px end_seq %u snd_una %u prev %u delta %u",
+				sk, skb, TCP_SKB_CB(skb)->end_seq, tp->snd_una, prev_una, delta);
+		}
+		tcp_for_write_queue_from_safe(skb, next, sk) {
+			if (iii > 10)
+				break;
+			if (before(TCP_SKB_CB(skb)->end_seq, tp->snd_una)) {
+				set_bit(TFW_SKB_FLAG_27, &skb->tfw_flags);
+				skb->save_end_seq_1 = TCP_SKB_CB(skb)->end_seq;
+				skb->save_una_1 = tp->snd_una;
+				skb->save_end_seq_2 = TCP_SKB_CB(first)->end_seq;
+			}
+			iii++;
+		}
+	}
+
+	if (after(tp->snd_una, tp->snd_nxt))
+		printk(KERN_ALERT "tcp_snd_una_update AAA %u %u", tp->snd_una, tp->snd_nxt);
 }
 
 /* If we update tp->rcv_nxt, also update tp->bytes_received */
@@ -3501,7 +3532,7 @@ static int tcp_ack_update_window(struct sock *sk, const struct sk_buff *skb, u32
 		}
 	}
 
-	tcp_snd_una_update(tp, ack);
+	tcp_snd_una_update(sk, tp, ack);
 
 	return flag;
 }
@@ -3640,7 +3671,8 @@ static inline void tcp_in_ack_event(struct sock *sk, u32 flags)
  * loss recovery then now we do any new sends (for FRTO) or
  * retransmits (for CA_Loss or CA_recovery) that make sense.
  */
-static void tcp_xmit_recovery(struct sock *sk, int rexmit)
+void tcp_xmit_recovery(struct sock *sk, int rexmit);
+void tcp_xmit_recovery(struct sock *sk, int rexmit)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -3697,7 +3729,21 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	/* We very likely will need to access rtx queue. */
 	prefetch(sk->tcp_rtx_queue.rb_node);
 
-	/* If the ack is older than previous acks
+	if (tcp_rtx_queue_head(sk)) {
+		struct sk_buff *sss = tcp_rtx_queue_head(sk);
+		struct sk_buff *q, *qq;
+
+		set_bit(TFW_SKB_FLAG_3, &sss->tfw_flags);
+		sss->tfw_last_ack = ack;
+		sss->tfw_prior_snd_una = prior_snd_una;
+
+		for (q = skb_rb_first(&sk->tcp_rtx_queue); q; q = qq) {
+			set_bit(TFW_SKB_FLAG_4, &q->tfw_flags);
+			qq = skb_rb_next(q);
+		}
+	}
+
+	/* If the ack is older than previous ack
 	 * then we can probably ignore it.
 	 */
 	if (before(ack, prior_snd_una)) {
@@ -3713,8 +3759,13 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	/* If the ack includes data we haven't sent yet, discard
 	 * this segment (RFC793 Section 3.9).
 	 */
-	if (after(ack, tp->snd_nxt))
+	if (after(ack, tp->snd_nxt)) {
+		printk(KERN_ALERT "%px AFTER %u snd_nxt %u  write_seq %u prior_snd_una %u | tp->snd_nxt-prior_snd_una %d tp->snd_nxt-ack %d prior_snd_una - ack %d | %px last_end_seq %u %d", sk,
+		       ack, tp->snd_nxt, tp->write_seq, prior_snd_una, (__s32)(tp->snd_nxt-prior_snd_una),
+		       (__s32)(tp->snd_nxt-ack), (prior_snd_una - ack), sk->last_sent, sk->last_end_seq, (__s32)(sk->last_end_seq - ack));
+		sock_set_flag(sk, SOCK_TEMPESTA_HAS_ERROR);
 		return -1;
+	}
 
 	if (after(ack, prior_snd_una)) {
 		flag |= FLAG_SND_UNA_ADVANCED;
@@ -3743,7 +3794,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		 * Note, we use the fact that SND.UNA>=SND.WL2.
 		 */
 		tcp_update_wl(tp, ack_seq);
-		tcp_snd_una_update(tp, ack);
+		tcp_snd_una_update(sk, tp, ack);
 		flag |= FLAG_WIN_UPDATE;
 
 		tcp_in_ack_event(sk, CA_ACK_WIN_UPDATE);
@@ -6547,7 +6598,9 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 
 	/* tcp_data could move socket to TIME-WAIT */
 	if (sk->sk_state != TCP_CLOSE) {
+		sock_set_flag(sk, SOCK_TEMPESTA_UNLINK_5);
 		tcp_data_snd_check(sk);
+		sock_reset_flag(sk, SOCK_TEMPESTA_UNLINK_5);
 		tcp_ack_snd_check(sk);
 	}
 

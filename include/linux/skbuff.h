@@ -937,6 +937,14 @@ struct sk_buff {
 	/* only useable after checking ->active_extensions != 0 */
 	struct skb_ext		*extensions;
 #endif
+	unsigned long		tfw_flags;
+	unsigned long		tfw_last_ack;
+	unsigned long		tfw_prior_snd_una;
+	unsigned int 		save_end_seq;
+
+	unsigned int            save_end_seq_1;
+	unsigned int            save_una_1;
+	unsigned int            save_end_seq_2;
 };
 
 #ifdef __KERNEL__
@@ -949,6 +957,41 @@ struct sk_buff {
 #define SKB_ALLOC_NAPI		0x04
 
 #ifdef CONFIG_SECURITY_TEMPESTA
+
+enum {
+	TFW_SKB_FLAG_1,
+	TFW_SKB_FLAG_2,
+	TFW_SKB_FLAG_3,
+	TFW_SKB_FLAG_4,
+	TFW_SKB_FLAG_5,
+	TFW_SKB_FLAG_6,
+	TFW_SKB_FLAG_7,
+	TFW_SKB_FLAG_8,
+	TFW_SKB_FLAG_9,
+	TFW_SKB_FLAG_10,
+	TFW_SKB_FLAG_11,
+	TFW_SKB_FLAG_12,
+	TFW_SKB_FLAG_13,
+	TFW_SKB_FLAG_14,
+	TFW_SKB_FLAG_15,
+	TFW_SKB_FLAG_16,
+	TFW_SKB_FLAG_17,
+	TFW_SKB_FLAG_18,
+	TFW_SKB_FLAG_19,
+	TFW_SKB_FLAG_20,
+	TFW_SKB_FLAG_21,
+	TFW_SKB_FLAG_22,
+	TFW_SKB_FLAG_23,
+	TFW_SKB_FLAG_24,
+	TFW_SKB_FLAG_25,
+	TFW_SKB_FLAG_26,
+	TFW_SKB_FLAG_27,
+	TFW_SKB_FLAG_28,
+	TFW_SKB_FLAG_29,
+	TFW_SKB_FLAG_30,
+	TFW_SKB_FLAG_31,
+	TFW_SKB_FLAG_32
+};
 
 static inline unsigned long
 skb_tfw_is_present(struct sk_buff *skb)
@@ -979,6 +1022,8 @@ skb_copy_tfw_cb(struct sk_buff *dst, struct sk_buff *src)
 static inline void
 skb_clear_tfw_cb(struct sk_buff *skb)
 {
+	set_bit(TFW_SKB_FLAG_12, &skb->tfw_flags);
+
 	WARN_ON_ONCE(!skb->tfw_cb.present);
 	skb->dev = NULL;
 }
@@ -3339,7 +3384,7 @@ static inline int skb_add_data(struct sk_buff *skb,
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		__wsum csum = 0;
 		if (csum_and_copy_from_iter_full(skb_put(skb, copy), copy,
-					         &csum, from)) {
+						 &csum, from)) {
 			skb->csum = csum_block_add(skb->csum, csum, off);
 			return 0;
 		}

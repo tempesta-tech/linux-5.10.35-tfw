@@ -61,6 +61,11 @@ void tcp_mstamp_refresh(struct tcp_sock *tp)
 	tp->tcp_mstamp = div_u64(val, NSEC_PER_USEC);
 }
 
+struct sk_buff *last_sent = NULL;
+EXPORT_SYMBOL(last_sent);
+unsigned int last_end_seq = 0;
+EXPORT_SYMBOL(last_end_seq);
+
 static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			   int push_one, gfp_t gfp);
 
@@ -70,6 +75,42 @@ static void tcp_event_new_data_sent(struct sock *sk, struct sk_buff *skb)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned int prior_packets = tp->packets_out;
+
+
+	sk->last_sent = skb;
+	sk->last_end_seq = TCP_SKB_CB(skb)->end_seq;
+
+	if (before(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
+		printk(KERN_ALERT "tcp_event_new_data_sent sk %px skb %px AAA snd_una %u end_seq %u flag %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d save_end_seq %u | %ps %ps %ps| sock %d %d %d %d %d %d %d | %u %u %u %u | save_end_seq_1 %u save_una_1 %u  save_end_seq_2 %u",
+		       sk, skb, tp->snd_una, TCP_SKB_CB(skb)->end_seq, test_bit(TFW_SKB_FLAG_1, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_2, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_3, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_4, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_5, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_6, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_7, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_8, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_9, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_10, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_11, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_12, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_13, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_14, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_15, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_16, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_17, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_18, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_19, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_20, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_21, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_22, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_23, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_24, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_25, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_26, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_27, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_28, &skb->tfw_flags),
+		       skb->save_end_seq, __builtin_return_address(0),
+		       __builtin_return_address(1), __builtin_return_address(2), sock_flag(sk, SOCK_TEMPESTA_HAS_ERROR),
+		       sock_flag(sk, SOCK_TEMPESTA_UNLINK), sock_flag(sk, SOCK_TEMPESTA_UNLINK_1),
+		       sock_flag(sk, SOCK_TEMPESTA_UNLINK_2), sock_flag(sk, SOCK_TEMPESTA_UNLINK_3),
+		       sock_flag(sk, SOCK_TEMPESTA_UNLINK_4), sock_flag(sk, SOCK_TEMPESTA_UNLINK_5),
+		        sk->__sk_common.skc_state, sk->__sk_common.skc_state_save_1,
+		       sk->__sk_common.skc_state_save_2, sk->__sk_common.skc_state_save_3,  skb->save_end_seq_1, skb->save_una_1, skb->save_end_seq_2);
+
+	if (after(sk->last_end_seq, TCP_SKB_CB(skb)->end_seq))
+		printk(KERN_ALERT "STRANGE %u %u %ps %ps %ps", sk->last_end_seq, TCP_SKB_CB(skb)->end_seq,
+		       __builtin_return_address(0), __builtin_return_address(1), __builtin_return_address(2));
+
+	if (sock_flag(sk, SOCK_TEMPESTA_HAS_ERROR))
+		printk(KERN_ALERT "tcp_event_new_data_sent %px %px end_seq %u snd_nxt %u | %ps",
+		       sk, skb, TCP_SKB_CB(skb)->end_seq, tp->snd_nxt, __builtin_return_address(0));
 
 	WRITE_ONCE(tp->snd_nxt, TCP_SKB_CB(skb)->end_seq);
 
@@ -2447,6 +2488,9 @@ static int tcp_mtu_probe(struct sock *sk)
 	sk_mem_charge(sk, nskb->truesize);
 
 	skb = tcp_send_head(sk);
+
+	set_bit(TFW_SKB_FLAG_16, &skb->tfw_flags);
+
 	skb_copy_decrypted(nskb, skb);
 
 	TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(skb)->seq;
@@ -2455,6 +2499,10 @@ static int tcp_mtu_probe(struct sock *sk)
 	TCP_SKB_CB(nskb)->sacked = 0;
 	nskb->csum = 0;
 	nskb->ip_summed = CHECKSUM_PARTIAL;
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+	skb_copy_tfw_cb(nskb, skb);
+#endif
 
 	tcp_insert_write_queue_before(nskb, skb, sk);
 	tcp_highest_sack_replace(sk, skb, nskb);
@@ -2633,6 +2681,20 @@ void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type)
 
 #ifdef CONFIG_SECURITY_TEMPESTA
 
+/*
+ * We should recalculate max_size, and split skb according
+ * new limit, because we add extra TLS_MAX_OVERHEAD bytes
+ * during tls encription. If we don't adjust it, we push
+ * skb with incorrect length to network.
+ */
+#define TFW_ADJUST_TLS_OVERHEAD(max_size)			\
+do {								\
+	if (max_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)	\
+		max_size = TLS_MAX_PAYLOAD_SIZE;		\
+	else							\
+		max_size -= TLS_MAX_OVERHEAD;			\
+} while(0)
+
 /**
  * The next funtion is called from places: from `tcp_write_xmit`
  * (a usual case) and from `tcp_write_wakeup`. In other places where
@@ -2652,19 +2714,22 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	if (!sk->sk_write_xmit || !skb_tfw_tls_type(skb))
 		return 0;
 
+	set_bit(TFW_SKB_FLAG_9, &(skb)->tfw_flags);
+
 	/* Should be checked early. */
 	BUG_ON(after(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)));
 	cong_win = (tp->snd_cwnd - in_flight) * mss_now;
 	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
 	/*
-	 * A receive side doesn’t start to process a TLS recod until
+	 * A receive side doesn’t start to process a TLS record until
 	 * it’s fully read from a socket. Too small record size causes
 	 * too much overhead. On the other side too large record size
 	 * can lead to significant delays on receive side if current
 	 * TCP congestion and/or the receiver’s advertised window are
 	 * smaller than a TLS record size.
 	 */
-	limit = min3(cong_win, send_win, (unsigned int)TLS_MAX_PAYLOAD_SIZE);
+	limit = min(cong_win, send_win);
+	TFW_ADJUST_TLS_OVERHEAD(limit);
 
 	result = sk->sk_write_xmit(sk, skb, mss_now, limit);
 	if (unlikely(result))
@@ -2674,20 +2739,6 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	tcp_set_skb_tso_segs(skb, mss_now);
 	return 0;
 }
-
-/*
- * We should recalculate max_size, and split skb according
- * new limit, because we add extra TLS_MAX_OVERHEAD bytes
- * during tls encription. If we don't adjust it, we push
- * skb with incorrect length to network.
- */
-#define TFW_ADJUST_TLS_OVERHEAD(max_size)			\
-do {								\
-	if (max_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)	\
-		max_size = TLS_MAX_PAYLOAD_SIZE;		\
-	else							\
-		max_size -= TLS_MAX_OVERHEAD;			\
-} while(0)
 
 #endif
 
@@ -2733,6 +2784,11 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 	while ((skb = tcp_send_head(sk))) {
 		unsigned int limit;
 
+		set_bit(TFW_SKB_FLAG_8, &(skb)->tfw_flags);
+
+		if (skb_tfw_tls_type(skb))
+			set_bit(TFW_SKB_FLAG_15, &(skb)->tfw_flags);
+
 		if (unlikely(tp->repair) && tp->repair_queue == TCP_SEND_QUEUE) {
 			/* "skb_mstamp_ns" is used as a start point for the retransmit timer */
 			skb->skb_mstamp_ns = tp->tcp_wstamp_ns = tp->tcp_clock_cache;
@@ -2741,8 +2797,20 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			goto repair; /* Skip network transmission */
 		}
 
+		if (skb_tfw_tls_type(skb)) {
+			set_bit(TFW_SKB_FLAG_17, &(skb)->tfw_flags);
+			if (sk->sk_write_xmit)
+				set_bit(TFW_SKB_FLAG_23, &(skb)->tfw_flags);
+		}
+
 		if (tcp_pacing_check(sk))
 			break;
+
+		if (skb_tfw_tls_type(skb)) {
+			set_bit(TFW_SKB_FLAG_18, &(skb)->tfw_flags);
+			if (sk->sk_write_xmit)
+				set_bit(TFW_SKB_FLAG_24, &(skb)->tfw_flags);
+		}
 
 		tso_segs = tcp_init_tso_segs(skb, mss_now);
 		BUG_ON(!tso_segs);
@@ -2756,9 +2824,21 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 				break;
 		}
 
+		if (skb_tfw_tls_type(skb)) {
+			set_bit(TFW_SKB_FLAG_20, &(skb)->tfw_flags);
+			if (sk->sk_write_xmit)
+				set_bit(TFW_SKB_FLAG_25, &(skb)->tfw_flags);
+		}
+
 		if (unlikely(!tcp_snd_wnd_test(tp, skb, mss_now))) {
 			is_rwnd_limited = true;
 			break;
+		}
+
+		if (skb_tfw_tls_type(skb)) {
+			set_bit(TFW_SKB_FLAG_21, &(skb)->tfw_flags);
+			if (sk->sk_write_xmit)
+				set_bit(TFW_SKB_FLAG_26, &(skb)->tfw_flags);
 		}
 
 		if (tso_segs == 1) {
@@ -2773,6 +2853,9 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 				break;
 		}
 
+		if (skb_tfw_tls_type(skb))
+			set_bit(TFW_SKB_FLAG_22, &(skb)->tfw_flags);
+
 		limit = mss_now;
 		if (tso_segs > 1 && !tcp_urg_mode(tp))
 			limit = tcp_mss_split_point(sk, skb, mss_now,
@@ -2782,6 +2865,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 						    nonagle);
 #ifdef CONFIG_SECURITY_TEMPESTA
 		if (sk->sk_write_xmit && skb_tfw_tls_type(skb)) {
+			set_bit(TFW_SKB_FLAG_19, &(skb)->tfw_flags);
 			if (unlikely(limit <= TLS_MAX_OVERHEAD)) {
 			    net_warn_ratelimited("%s: too small MSS %u"
 						 " for TLS\n",
@@ -3288,8 +3372,30 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 	if (before(TCP_SKB_CB(skb)->seq, tp->snd_una)) {
 		if (unlikely(before(TCP_SKB_CB(skb)->end_seq, tp->snd_una))) {
 			WARN_ON_ONCE(1);
+			printk(KERN_ALERT "%px !!!!!! skb %px flag %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d seq %u end_seq %u snd_una %u sock_tempesta %d tfw_last_ack %lu tfw_prior_snd_una %lu snd_nxt %u write_seq %u | %d sock flag %d %d save_end_seq_1 %u save_una_1 %u save_end_seq_2 %u",
+			       sk, skb, test_bit(TFW_SKB_FLAG_1, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_2, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_3, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_4, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_5, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_6, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_7, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_8, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_9, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_10, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_11, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_12, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_13, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_14, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_15, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_16, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_17, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_18, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_19, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_20, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_21, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_22, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_23, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_24, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_25, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_26, &skb->tfw_flags),
+			       test_bit(TFW_SKB_FLAG_27, &skb->tfw_flags), test_bit(TFW_SKB_FLAG_28, &skb->tfw_flags),
+			       TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq, tp->snd_una,
+			       sock_flag(sk, SOCK_TEMPESTA), skb->tfw_last_ack, skb->tfw_prior_snd_una, tp->snd_nxt, tp->write_seq,
+			       (__s32)(tp->snd_nxt-tp->snd_una), sock_flag(sk, SOCK_TEMPESTA_HAS_ERROR),
+		       		sock_flag(sk, SOCK_TEMPESTA_UNLINK), skb->save_end_seq_1, skb->save_una_1, skb->save_end_seq_2);
+			printk(KERN_ALERT "!!!!!! last_sent %px last_end_seq %u", last_sent, 
+				last_end_seq);
 			return -EINVAL;
 		}
+		
 		if (tcp_trim_head(sk, skb, tp->snd_una - TCP_SKB_CB(skb)->seq))
 			return -ENOMEM;
 	}
@@ -3536,6 +3642,8 @@ void tcp_send_fin(struct sock *sk)
 			 * does not change tp->snd_nxt.
 			 */
 			WRITE_ONCE(tp->snd_nxt, tp->snd_nxt + 1);
+			sk->last_end_seq = tp->snd_nxt;
+			sk->last_sent = tskb;
 			return;
 		}
 	} else {

@@ -185,6 +185,11 @@ struct sock_common {
 
 	unsigned short		skc_family;
 	volatile unsigned char	skc_state;
+	volatile unsigned char  skc_state_save_1;
+	volatile unsigned char  skc_state_save_2;
+	volatile unsigned char  skc_state_save_3;
+	volatile unsigned char  skc_state_save_4;
+
 	unsigned char		skc_reuse:4;
 	unsigned char		skc_reuseport:1;
 	unsigned char		skc_ipv6only:1;
@@ -545,6 +550,8 @@ struct sock {
 	struct bpf_local_storage __rcu	*sk_bpf_storage;
 #endif
 	struct rcu_head		sk_rcu;
+	struct sk_buff *last_sent;
+	unsigned int last_end_seq;
 };
 
 enum sk_pacing {
@@ -888,7 +895,14 @@ enum sock_flags {
 	SOCK_TSTAMP_NEW, /* Indicates 64 bit timestamps always */
 #ifdef CONFIG_SECURITY_TEMPESTA
 	SOCK_TEMPESTA, /* The socket is managed by Tempesta FW */
-	SOCK_TEMPESTA_HAS_DATA /* The socket has data in Tempesta FW write queue */
+	SOCK_TEMPESTA_HAS_DATA, /* The socket has data in Tempesta FW write queue */
+	SOCK_TEMPESTA_HAS_ERROR,
+	SOCK_TEMPESTA_UNLINK,
+	SOCK_TEMPESTA_UNLINK_1,
+	SOCK_TEMPESTA_UNLINK_2,
+	SOCK_TEMPESTA_UNLINK_3,
+	SOCK_TEMPESTA_UNLINK_4,
+	SOCK_TEMPESTA_UNLINK_5,
 #endif
 };
 
