@@ -2649,7 +2649,16 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	unsigned int limit;
 	int result;
 
-	if (!sk->sk_write_xmit || !skb_tfw_tls_type(skb))
+	/*
+	 * If skb has tls type, but sk->sk_write_xmit is equal to zero
+	 * it means that connection was already dropped. In this case
+	 * there should not be any skbs with tls type in socket write
+	 * queue, because we always recalculate sequence numbers of skb
+	 * in `sk_write_xmit`, and if we don't call it skb will have
+	 * incorrect sequence numbers, that leads to unclear warning
+	 * later.
+	 */
+	if (!skb_tfw_tls_type(skb) || WARN_ON_ONCE(!sk->sk_write_xmit))
 		return 0;
 
 	/* Should be checked early. */
