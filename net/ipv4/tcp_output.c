@@ -2364,6 +2364,75 @@ static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 	return true;
 }
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+
+/**
+ * The next funtion is called from places: from `tcp_write_xmit`
+ * (a usual case) and from `tcp_write_wakeup`. In other places where
+ * `tcp_transmit_skb` is called we deal with special TCP skbs or skbs
+ * not from tcp send queue.
+ */
+static int
+tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
+		      unsigned int mss_now)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned int in_flight = tcp_packets_in_flight(tp);
+	unsigned int send_win, cong_win;
+	unsigned int limit;
+	int result;
+
+	/*
+	 * If skb has tls type, but sk->sk_write_xmit is equal to zero
+	 * it means that connection was already dropped. In this case
+	 * there should not be any skbs with tls type in socket write
+	 * queue, because we always recalculate sequence numbers of skb
+	 * in `sk_write_xmit`, and if we don't call it skb will have
+	 * incorrect sequence numbers, that leads to unclear warning
+	 * later.
+	 */
+	if (!skb_tfw_tls_type(skb) || WARN_ON_ONCE(!sk->sk_write_xmit))
+		return 0;
+
+	/* Should be checked early. */
+	BUG_ON(after(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)));
+	cong_win = (tp->snd_cwnd - in_flight) * mss_now;
+	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
+	/*
+	 * A receive side doesn’t start to process a TLS recod until
+	 * it’s fully read from a socket. Too small record size causes
+	 * too much overhead. On the other side too large record size
+	 * can lead to significant delays on receive side if current
+	 * TCP congestion and/or the receiver’s advertised window are
+	 * smaller than a TLS record size.
+	 */
+	limit = min3(cong_win, send_win, (unsigned int)TLS_MAX_PAYLOAD_SIZE);
+
+	result = sk->sk_write_xmit(sk, skb, mss_now, limit);
+	if (unlikely(result))
+		return result;
+
+	/* Fix up TSO segments after TLS overhead. */
+	tcp_set_skb_tso_segs(skb, mss_now);
+	return 0;
+}
+
+/*
+ * We should recalculate max_size, and split skb according
+ * new limit, because we add extra TLS_MAX_OVERHEAD bytes
+ * during tls encription. If we don't adjust it, we push
+ * skb with incorrect length to network.
+ */
+#define TFW_ADJUST_TLS_OVERHEAD(max_size)			\
+do {								\
+	if (max_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)	\
+		max_size = TLS_MAX_PAYLOAD_SIZE;		\
+	else							\
+		max_size -= TLS_MAX_OVERHEAD;			\
+} while(0)
+
+#endif
+
 /* Create a new MTU probe if we are ready.
  * MTU probe is regularly attempting to increase the path MTU by
  * deliberately sending larger packets.  This discovers routing
@@ -2384,6 +2453,9 @@ static int tcp_mtu_probe(struct sock *sk)
 	int copy, len;
 	int mss_now;
 	int interval;
+#ifdef CONFIG_SECURITY_TEMPESTA
+	int result;
+#endif
 
 	/* Not currently probing/verifying,
 	 * not in recovery,
@@ -2404,6 +2476,7 @@ static int tcp_mtu_probe(struct sock *sk)
 	mss_now = tcp_current_mss(sk);
 	probe_size = tcp_mtu_to_mss(sk, (icsk->icsk_mtup.search_high +
 				    icsk->icsk_mtup.search_low) >> 1);
+	TFW_ADJUST_TLS_OVERHEAD(probe_size);
 	size_needed = probe_size + (tp->reordering + 1) * tp->mss_cache;
 	interval = icsk->icsk_mtup.search_high - icsk->icsk_mtup.search_low;
 	/* When misfortune happens, we are reprobing actively,
@@ -2456,6 +2529,10 @@ static int tcp_mtu_probe(struct sock *sk)
 	nskb->csum = 0;
 	nskb->ip_summed = CHECKSUM_PARTIAL;
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+	skb_copy_tfw_cb(nskb, skb);
+#endif
+
 	tcp_insert_write_queue_before(nskb, skb, sk);
 	tcp_highest_sack_replace(sk, skb, nskb);
 
@@ -2493,6 +2570,14 @@ static int tcp_mtu_probe(struct sock *sk)
 			break;
 	}
 	tcp_init_tso_segs(nskb, nskb->len);
+
+#ifdef CONFIG_SECURITY_TEMPESTA
+	result = tcp_tfw_sk_write_xmit(sk, nskb, mss_now);
+	if (unlikely(result)) {
+		tcp_tfw_handle_error(sk, result);
+		return 0;
+	}
+#endif
 
 	/* We're ready to send.  If this fails, the probe will
 	 * be resegmented into mss-sized pieces by tcp_write_xmit().
@@ -2630,75 +2715,6 @@ void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type)
 	else if (type == tp->chrono_type)
 		tcp_chrono_set(tp, TCP_CHRONO_BUSY);
 }
-
-#ifdef CONFIG_SECURITY_TEMPESTA
-
-/**
- * The next funtion is called from places: from `tcp_write_xmit`
- * (a usual case) and from `tcp_write_wakeup`. In other places where
- * `tcp_transmit_skb` is called we deal with special TCP skbs or skbs
- * not from tcp send queue.
- */
-static int
-tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
-		      unsigned int mss_now)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	unsigned int in_flight = tcp_packets_in_flight(tp);
-	unsigned int send_win, cong_win;
-	unsigned int limit;
-	int result;
-
-	/*
-	 * If skb has tls type, but sk->sk_write_xmit is equal to zero
-	 * it means that connection was already dropped. In this case
-	 * there should not be any skbs with tls type in socket write
-	 * queue, because we always recalculate sequence numbers of skb
-	 * in `sk_write_xmit`, and if we don't call it skb will have
-	 * incorrect sequence numbers, that leads to unclear warning
-	 * later.
-	 */
-	if (!skb_tfw_tls_type(skb) || WARN_ON_ONCE(!sk->sk_write_xmit))
-		return 0;
-
-	/* Should be checked early. */
-	BUG_ON(after(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)));
-	cong_win = (tp->snd_cwnd - in_flight) * mss_now;
-	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
-	/*
-	 * A receive side doesn’t start to process a TLS recod until
-	 * it’s fully read from a socket. Too small record size causes
-	 * too much overhead. On the other side too large record size
-	 * can lead to significant delays on receive side if current
-	 * TCP congestion and/or the receiver’s advertised window are
-	 * smaller than a TLS record size.
-	 */
-	limit = min3(cong_win, send_win, (unsigned int)TLS_MAX_PAYLOAD_SIZE);
-
-	result = sk->sk_write_xmit(sk, skb, mss_now, limit);
-	if (unlikely(result))
-		return result;
-
-	/* Fix up TSO segments after TLS overhead. */
-	tcp_set_skb_tso_segs(skb, mss_now);
-	return 0;
-}
-
-/*
- * We should recalculate max_size, and split skb according
- * new limit, because we add extra TLS_MAX_OVERHEAD bytes
- * during tls encription. If we don't adjust it, we push
- * skb with incorrect length to network.
- */
-#define TFW_ADJUST_TLS_OVERHEAD(max_size)			\
-do {								\
-	if (max_size > TLS_MAX_PAYLOAD_SIZE + TLS_MAX_OVERHEAD)	\
-		max_size = TLS_MAX_PAYLOAD_SIZE;		\
-	else							\
-		max_size -= TLS_MAX_OVERHEAD;			\
-} while(0)
-
-#endif
 
 /* This routine writes packets to the network.  It advances the
  * send_head.  This happens as incoming acks open up the remote
