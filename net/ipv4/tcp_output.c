@@ -2476,7 +2476,6 @@ static int tcp_mtu_probe(struct sock *sk)
 	mss_now = tcp_current_mss(sk);
 	probe_size = tcp_mtu_to_mss(sk, (icsk->icsk_mtup.search_high +
 				    icsk->icsk_mtup.search_low) >> 1);
-	TFW_ADJUST_TLS_OVERHEAD(probe_size);
 	size_needed = probe_size + (tp->reordering + 1) * tp->mss_cache;
 	interval = icsk->icsk_mtup.search_high - icsk->icsk_mtup.search_low;
 	/* When misfortune happens, we are reprobing actively,
@@ -2509,6 +2508,7 @@ static int tcp_mtu_probe(struct sock *sk)
 			return 0;
 	}
 
+	TFW_ADJUST_TLS_OVERHEAD(probe_size);
 	if (!tcp_can_coalesce_send_queue_head(sk, probe_size))
 		return -1;
 
@@ -2572,11 +2572,17 @@ static int tcp_mtu_probe(struct sock *sk)
 	tcp_init_tso_segs(nskb, nskb->len);
 
 #ifdef CONFIG_SECURITY_TEMPESTA
-	result = tcp_tfw_sk_write_xmit(sk, nskb, mss_now);
+	if (!skb_tfw_tls_type(nskb) || WARN_ON_ONCE(!sk->sk_write_xmit))
+		goto transmit;
+
+	result = sk->sk_write_xmit(sk, nskb, probe_size, probe_size);
 	if (unlikely(result)) {
 		tcp_tfw_handle_error(sk, result);
 		return 0;
 	}
+	tcp_set_skb_tso_segs(nskb, nskb->len);
+
+transmit:
 #endif
 
 	/* We're ready to send.  If this fails, the probe will
