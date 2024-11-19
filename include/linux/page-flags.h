@@ -123,6 +123,15 @@ enum pageflags {
 	PG_reclaim,		/* To be reclaimed asap */
 	PG_swapbacked,		/* Page is backed by RAM/swap */
 	PG_unevictable,		/* Page is "unevictable"  */
+	PG_tempesta_ss_skb_1,
+	PG_tempesta_ss_skb_2,
+	PG_tempesta_pool,
+	PG_tempesta_test,
+	PG_tempesta_cache,
+	PG_tempesta_http,
+	PG_tempesta_http_msg,
+	
+	
 #ifdef CONFIG_MMU
 	PG_mlocked,		/* Page is vma mlocked */
 #endif

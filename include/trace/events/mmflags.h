@@ -106,7 +106,14 @@
 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
 	{1UL << PG_reclaim,		"reclaim"	},		\
 	{1UL << PG_swapbacked,		"swapbacked"	},		\
-	{1UL << PG_unevictable,		"unevictable"	}		\
+	{1UL << PG_unevictable,		"unevictable"	},		\
+	{1UL << PG_tempesta_ss_skb_1,	"PG_tempesta_ss_skb_1"	},	\
+	{1UL << PG_tempesta_ss_skb_2,	"PG_tempesta_ss_skb_2"	},	\
+	{1UL << PG_tempesta_pool,	"PG_tempesta_pool"	},	\
+	{1UL << PG_tempesta_test,	"PG_tempesta_test"	},	\
+	{1UL << PG_tempesta_cache,	"PG_tempesta_cache"	},	\
+	{1UL << PG_tempesta_http,	"PG_tempesta_http"	},	\
+	{1UL << PG_tempesta_http_msg,	"PG_tempesta_http_msg"	}	\
 IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
 IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
 IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\

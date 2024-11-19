@@ -661,6 +661,16 @@ static void bad_page(struct page *page, const char *reason)
 
 	pr_alert("BUG: Bad page state in process %s  pfn:%05lx\n",
 		current->comm, page_to_pfn(page));
+	
+	printk(KERN_ALERT "Extra Tempsta flags for bad page %d %d %d %d %d %d %d",
+	       test_bit(PG_tempesta_ss_skb_1, &page->flags),
+	       test_bit(PG_tempesta_ss_skb_2, &page->flags),
+	       test_bit(PG_tempesta_pool, &page->flags),
+	       test_bit(PG_tempesta_test, &page->flags),
+	       test_bit(PG_tempesta_cache, &page->flags),
+	       test_bit(PG_tempesta_http, &page->flags),
+	       test_bit(PG_tempesta_http_msg, &page->flags));
+
 	__dump_page(page, reason);
 	dump_page_owner(page);
 
