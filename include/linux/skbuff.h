@@ -937,6 +937,9 @@ struct sk_buff {
 	/* only useable after checking ->active_extensions != 0 */
 	struct skb_ext		*extensions;
 #endif
+#ifdef CONFIG_SECURITY_TEMPESTA
+	unsigned long		tfw_flags;
+#endif
 };
 
 #ifdef __KERNEL__
@@ -949,6 +952,16 @@ struct sk_buff {
 #define SKB_ALLOC_NAPI		0x04
 
 #ifdef CONFIG_SECURITY_TEMPESTA
+
+enum {
+	TFW_FLAG_SKB_SEND,
+	TFW_FLAG_SKB_RECV,
+	TFW_FLAG_SKB_1,
+	TFW_FLAG_SKB_2,
+	TFW_FLAG_SKB_3,
+	TFW_FLAG_SKB_4,
+	TFW_FLAG_SKB_5
+};
 
 static inline unsigned long
 skb_tfw_is_present(struct sk_buff *skb)
@@ -3339,7 +3352,7 @@ static inline int skb_add_data(struct sk_buff *skb,
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		__wsum csum = 0;
 		if (csum_and_copy_from_iter_full(skb_put(skb, copy), copy,
-					         &csum, from)) {
+						 &csum, from)) {
 			skb->csum = csum_block_add(skb->csum, csum, off);
 			return 0;
 		}

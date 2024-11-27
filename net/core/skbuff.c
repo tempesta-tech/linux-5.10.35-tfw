@@ -348,6 +348,9 @@ __alloc_skb_init(struct sk_buff *skb, u8 *data, unsigned int size,
 	skb->truesize = SKB_TRUESIZE(size);
 	skb->pfmemalloc = pfmemalloc;
 	refcount_set(&skb->users, 1);
+#ifdef CONFIG_SECURITY_TEMPESTA
+	skb->tfw_flags = 0;
+#endif
 	skb->head = data;
 	skb->data = data;
 	skb_reset_tail_pointer(skb);
@@ -893,6 +896,19 @@ void skb_release_head_state(struct sk_buff *skb)
 {
 	skb_dst_drop(skb);
 	if (skb->destructor) {
+		if (in_irq()) {
+			if (test_bit(TFW_FLAG_SKB_SEND, &skb->tfw_flags)) {
+				printk(KERN_ALERT "skb_release_all SEND %px | %ps %ps %ps %ps",
+				       skb, __builtin_return_address(0), __builtin_return_address(1),
+				       __builtin_return_address(2), __builtin_return_address(3));
+			}
+			if (test_bit(TFW_FLAG_SKB_RECV, &skb->tfw_flags)) {
+				printk(KERN_ALERT "skb_release_all RECV %px | %ps %ps %ps %ps",
+				       skb, __builtin_return_address(0), __builtin_return_address(1),
+				       __builtin_return_address(2), __builtin_return_address(3));
+			}
+		}
+
 		WARN_ON(in_irq());
 		skb->destructor(skb);
 	}
@@ -1255,6 +1271,9 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(head_frag);
 	C(data);
 	C(truesize);
+#ifdef CONFIG_SECURITY_TEMPESTA
+	C(tfw_flags);
+#endif
 	refcount_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
