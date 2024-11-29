@@ -523,8 +523,7 @@ struct sock {
 				 * and receiver window.
 				 */
 	int			(*sk_fill_write_queue)(struct sock *sk,
-						       unsigned int mss_now,
-						       int ss_action);
+						       unsigned int mss_now);
 				/*
 				 * Tempesta FW callback to free all private
 				 * resources associated with socket.
