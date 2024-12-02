@@ -1423,7 +1423,11 @@ static bool is_xdp_raw_buffer_queue(struct virtnet_info *vi, int q)
 		return false;
 }
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+static void virtnet_poll_cleantx(struct receive_queue *rq, int budget)
+#else
 static void virtnet_poll_cleantx(struct receive_queue *rq)
+#endif
 {
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	unsigned int index = vq2rxq(rq->vq);
@@ -1434,7 +1438,11 @@ static void virtnet_poll_cleantx(struct receive_queue *rq)
 		return;
 
 	if (__netif_tx_trylock(txq)) {
+#ifdef CONFIG_SECURITY_TEMPESTA
+		free_old_xmit_skbs(sq, !!budget);
+#else
 		free_old_xmit_skbs(sq, true);
+#endif
 		__netif_tx_unlock(txq);
 	}
 
@@ -1451,7 +1459,11 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 	unsigned int received;
 	unsigned int xdp_xmit = 0;
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+	virtnet_poll_cleantx(rq, budget);
+#else
 	virtnet_poll_cleantx(rq);
+#endif
 
 	received = virtnet_receive(rq, budget, &xdp_xmit);
 
@@ -1518,7 +1530,11 @@ static int virtnet_poll_tx(struct napi_struct *napi, int budget)
 
 	txq = netdev_get_tx_queue(vi->dev, index);
 	__netif_tx_lock(txq, raw_smp_processor_id());
+#ifdef CONFIG_SECURITY_TEMPESTA
+	free_old_xmit_skbs(sq, !!budget);
+#else
 	free_old_xmit_skbs(sq, true);
+#endif
 	__netif_tx_unlock(txq);
 
 	virtqueue_napi_complete(napi, sq->vq, 0);
