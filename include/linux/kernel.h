@@ -889,3 +889,5 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 	 BUILD_BUG_ON_ZERO((perms) & 2) +					\
 	 (perms))
 #endif
+
+typedef void (*print_extra_report_f)(void);

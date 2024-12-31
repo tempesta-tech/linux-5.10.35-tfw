@@ -49,6 +49,9 @@ static unsigned long kasan_flags;
 #define KASAN_BIT_REPORTED	0
 #define KASAN_BIT_MULTI_SHOT	1
 
+print_extra_report_f print_extra_report;
+EXPORT_SYMBOL_GPL(print_extra_report);
+
 bool kasan_save_enable_multi_shot(void)
 {
 	return test_and_set_bit(KASAN_BIT_MULTI_SHOT, &kasan_flags);
@@ -550,6 +553,9 @@ static void __kasan_report(unsigned long addr, size_t size, bool is_write,
 	}
 
 	end_report(&flags);
+
+	if(print_extra_report)
+		print_extra_report();
 }
 
 bool kasan_report(unsigned long addr, size_t size, bool is_write,
