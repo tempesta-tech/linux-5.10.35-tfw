@@ -5851,6 +5851,21 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb)
 no_ack:
 			if (eaten)
 				kfree_skb_partial(skb, fragstolen);
+#ifdef CONFIG_SECURITY_TEMPESTA
+			/*
+			 * In the vanilla linux kernel, socket can't be
+			 * DEAD here. But in case when CONFIG_SECURITY_TEMPESTA
+			 * is enabled and Tempesta FW is loaded, socket can
+			 * became DEAD in case of error in `xmit` callback.
+			 * (tcp_data_snd_check->tcp_push_pending_frames->
+			 *  __tcp_push_pending_frames->tcp_write_xmit->
+			 *  tcp_tfw_sk_write_xmit->tcp_tfw_handle_error).
+			 *  When socket became DEAD, Tempesta FW zeroed
+			 *  `sk->sk_data_ready` pointer, so we should not call
+			 *  `tcp_data_ready` for DEAD socket.
+			 */
+			if (!sock_flag(sk, SOCK_DEAD))
+#endif
 			tcp_data_ready(sk);
 			return;
 		}
