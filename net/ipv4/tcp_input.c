@@ -5851,6 +5851,9 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb)
 no_ack:
 			if (eaten)
 				kfree_skb_partial(skb, fragstolen);
+#ifdef CONFIG_SECURITY_TEMPESTA
+			if (!sock_flag(sk, SOCK_DEAD))
+#endif
 			tcp_data_ready(sk);
 			return;
 		}
