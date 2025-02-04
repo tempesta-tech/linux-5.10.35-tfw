@@ -187,12 +187,40 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 
 	error = kset_register(&cp->subsys);
 	if (error) {
+	/*
+	 * Free memory, which was allocated in `kobject_set_name`
+	 * This patch should be dropped during porting on
+	 * linux kernel 6.12.12.
+	 */
+#ifdef CONFIG_SECURITY_TEMPESTA
+		kfree_const(cp->subsys.kobj.name);
+		goto err_out;
+#else
 		kfree(cp);
 		return error;
+#endif
 	}
 	error = class_add_groups(class_get(cls), cls->class_groups);
 	class_put(cls);
+	/*
+	 * This patch should be dropped during porting on
+	 * linux kenrel 6.12.12.
+	 */
+#ifdef CONFIG_SECURITY_TEMPESTA
+	if (error) {
+		kfree_const(cp->subsys.kobj.name);
+		kobject_del(&cp->subsys.kobj);
+		goto err_out;
+	}
+
+	return 0;
+
+err_out:
+	kfree(cp);
+	cls->p = NULL;
+#endif
 	return error;
+
 }
 EXPORT_SYMBOL_GPL(__class_register);
 
