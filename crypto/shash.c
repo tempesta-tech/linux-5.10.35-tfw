@@ -524,6 +524,7 @@ crypto_alloc_shash_atomic(struct crypto_alg *alg)
 	BUG_ON(!alg);
 	return crypto_create_tfm(alg, &crypto_shash_type);
 }
+ALLOW_ERROR_INJECTION(crypto_alloc_shash_atomic, ERRNO);
 EXPORT_SYMBOL_GPL(crypto_alloc_shash_atomic);
 #endif
 
