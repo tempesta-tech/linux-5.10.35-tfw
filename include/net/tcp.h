@@ -1889,7 +1889,20 @@ tcp_tfw_handle_error(struct sock *sk, int error)
 	sk->sk_err = error;
 	sk->sk_error_report(sk);
 	tcp_write_queue_purge(sk);
-	tcp_done(sk);
+
+	/*
+	 * If this function is called when error occurs during sending
+	 * TCP FIN from `ss_do_close` or `tcp_shutdown`, we should not
+	 * call `tcp_done` just set state to TCP_CLOSE and clear timers
+	 * to prevent extra call of `inet_csk_destroy_sock`.
+	 */
+	if (unlikely(sk->sk_state == TCP_FIN_WAIT1
+		     || sk->sk_state == TCP_LAST_ACK)) {
+		tcp_set_state(sk, TCP_CLOSE);
+		tcp_clear_xmit_timers(sk);
+	} else {
+		tcp_done(sk);
+	}
 }
 #endif
 
