@@ -2383,16 +2383,17 @@ tcp_tfw_sk_write_xmit(struct sock *sk, struct sk_buff *skb,
 	int result;
 
 	/*
-	 * If skb has tls type, but sk->sk_write_xmit is equal to zero
-	 * it means that connection was already dropped. In this case
-	 * there should not be any skbs with tls type in socket write
-	 * queue, because we always recalculate sequence numbers of skb
-	 * in `sk_write_xmit`, and if we don't call it skb will have
-	 * incorrect sequence numbers, that leads to unclear warning
-	 * later.
+	 * If skb has tls type, but `sk->sk_write_xmit` is equal to zero
+	 * it means that connection was already dropped. This skb is
+	 * not valid, because we should recalculate sequence numbers of
+	 * for this skb in `sk_write_xmit`, and if we don't call it skb
+	 * will have incorrect sequence numbers. So we should return
+	 * error code here and close socket using `tcp_tfw_handle_error`.
 	 */
-	if (!skb_tfw_tls_type(skb) || WARN_ON_ONCE(!sk->sk_write_xmit))
+	if (!skb_tfw_tls_type(skb))
 		return 0;
+	else if (!sk->sk_write_xmit)
+		return -EPIPE;
 
 	/* Should be checked early. */
 	BUG_ON(after(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)));
@@ -2572,8 +2573,12 @@ static int tcp_mtu_probe(struct sock *sk)
 	tcp_init_tso_segs(nskb, nskb->len);
 
 #ifdef CONFIG_SECURITY_TEMPESTA
-	if (!skb_tfw_tls_type(nskb) || WARN_ON_ONCE(!sk->sk_write_xmit))
+	if (!skb_tfw_tls_type(nskb))
 		goto transmit;
+	else if (!sk->sk_write_xmit) {
+		tcp_tfw_handle_error(sk, -EPIPE);
+		return 0;
+	}
 
 	result = sk->sk_write_xmit(sk, nskb, probe_size, probe_size);
 	if (unlikely(result)) {
