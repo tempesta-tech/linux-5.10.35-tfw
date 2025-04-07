@@ -887,7 +887,13 @@ enum sock_flags {
 	SOCK_TSTAMP_NEW, /* Indicates 64 bit timestamps always */
 #ifdef CONFIG_SECURITY_TEMPESTA
 	SOCK_TEMPESTA, /* The socket is managed by Tempesta FW */
-	SOCK_TEMPESTA_HAS_DATA /* The socket has data in Tempesta FW write queue */
+	SOCK_TEMPESTA_HAS_DATA, /* The socket has data in Tempesta FW
+				 * write queue.
+				 */
+	SOCK_TEMPESTA_IS_CLOSING, /* The socket is closing by Tempesta FW
+				   * from `ss_do_close`. `tcp_done` should
+				   * not be called from the kernel code.
+				   */
 #endif
 };
 
