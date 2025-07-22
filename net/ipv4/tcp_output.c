@@ -2338,26 +2338,41 @@ static inline void tcp_mtu_check_reprobe(struct sock *sk)
 	}
 }
 
+#ifdef CONFIG_SECURITY_TEMPESTA
+
+static bool tfw_tcp_skb_can_collapse(struct sock *sk, struct sk_buff *skb,
+				     struct sk_buff *next)
+{
+	BUG_ON(!sock_flag(sk, SOCK_TEMPESTA));
+
+	if (!tcp_skb_is_last(sk, skb)
+	    && ((skb_tfw_tls_type(skb) != skb_tfw_tls_type(next))
+		|| (skb->mark != next->mark)
+		|| (((skb_shinfo(skb)->tx_flags & SKBTX_SHARED_FRAG)
+		    != (skb_shinfo(next)->tx_flags & SKBTX_SHARED_FRAG)))))
+		return false;
+	return true;
+}
+
+#endif
+
 static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 {
 	struct sk_buff *skb, *next;
 
 	skb = tcp_send_head(sk);
 	tcp_for_write_queue_from_safe(skb, next, sk) {
+#ifdef CONFIG_SECURITY_TEMPESTA
+		/* Do not coalesce tempesta skbs with tls type or set mark. */
+		if (sock_flag(sk, SOCK_TEMPESTA)
+		    && !tfw_tcp_skb_can_collapse(sk, skb, next))
+			return false;
+#endif
 		if (len <= skb->len)
 			break;
 
 		if (unlikely(TCP_SKB_CB(skb)->eor) || tcp_has_tx_tstamp(skb))
 			return false;
-#ifdef CONFIG_SECURITY_TEMPESTA
-		/* Do not coalesce tempesta skbs with tls type or set mark. */
-		if ((next != ((struct sk_buff *)&(sk)->sk_write_queue))
-		    && ((skb_tfw_tls_type(skb) != skb_tfw_tls_type(next))
-			|| (sock_flag(sk, SOCK_TEMPESTA)
-			    && (skb->mark != next->mark))))
-			return false;
-#endif
-
 		len -= skb->len;
 	}
 
@@ -2365,6 +2380,60 @@ static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 }
 
 #ifdef CONFIG_SECURITY_TEMPESTA
+
+/* First skb in the write queue is smaller than ideal packet size.
+ * Check if we can move payload from the second skb in the queue.
+ */
+static unsigned int tfw_tcp_grow_skb(struct sock *sk, struct sk_buff *skb,
+				     unsigned int amount)
+{
+	struct sk_buff *next = skb->next;
+	unsigned int nlen;
+	bool stolen;
+	int delta;
+
+	if (tcp_skb_is_last(sk, skb))
+		return 0;
+
+	if (!tfw_tcp_skb_can_collapse(sk, skb, next))
+		return 0;
+
+	if (!tcp_skb_can_collapse(skb, next))
+		return 0;
+
+	nlen = next->len;
+	BUG_ON(!nlen);
+
+	if (amount < nlen)
+		return 0;
+
+	if (amount > nlen
+	    && (unlikely(TCP_SKB_CB(next)->eor) || tcp_has_tx_tstamp(next)))
+		return 0;
+
+	if (!skb_try_coalesce(skb, next, &stolen, &delta))
+		return 0;
+
+	TCP_SKB_CB(skb)->end_seq += nlen;
+	TCP_SKB_CB(next)->seq += nlen;
+
+	if (TCP_SKB_CB(next)->tcp_flags &TCPHDR_FIN)
+		TCP_SKB_CB(skb)->end_seq++;
+	/* We've eaten all the data from this skb.
+	* Throw it away. */
+	TCP_SKB_CB(skb)->tcp_flags |= TCP_SKB_CB(next)->tcp_flags;
+	/* If this is the last SKB we copy and eor is set
+	 * we need to propagate it to the new skb.
+	 */
+	TCP_SKB_CB(skb)->eor = TCP_SKB_CB(next)->eor;
+	tcp_skb_collapse_tstamp(skb, next);
+	tcp_unlink_write_queue(next, sk);
+	sk_wmem_queued_add(sk, delta - next->truesize);
+	sk_mem_charge(sk, delta - next->truesize);
+	kfree_skb_partial(next, stolen);
+
+	return nlen;
+}
 
 /**
  * The next funtion is called from places: from `tcp_write_xmit`
@@ -2431,6 +2500,21 @@ do {								\
 	else							\
 		max_size -= TLS_MAX_OVERHEAD;			\
 } while(0)
+
+static void tfw_coalesce_send_queue(struct sock *sk, struct sk_buff *skb,
+				    unsigned int amount, unsigned int mss_now)
+{
+	unsigned int nlen;
+
+	if (!sock_flag(sk, SOCK_TEMPESTA))
+		return;
+
+	amount = amount > skb->len ? amount - skb->len : 0;
+	while (amount && (nlen = tfw_tcp_grow_skb(sk, skb, amount)))
+		amount -= nlen;
+
+	tcp_set_skb_tso_segs(skb, mss_now);
+}
 
 #endif
 
@@ -2830,6 +2914,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		if (skb->len > limit &&
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
+
+		tfw_coalesce_send_queue(sk, skb, limit, mss_now);
 
 		if (tcp_small_queue_check(sk, skb, 0))
 			break;
