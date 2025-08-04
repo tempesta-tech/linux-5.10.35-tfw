@@ -2343,13 +2343,20 @@ static inline void tcp_mtu_check_reprobe(struct sock *sk)
 static bool tfw_tcp_skb_can_collapse(struct sock *sk, struct sk_buff *skb,
 				     struct sk_buff *next)
 {
-	BUG_ON(!sock_flag(sk, SOCK_TEMPESTA));
+	if (!sock_flag(sk, SOCK_TEMPESTA))
+		return true;
 
-	if (!tcp_skb_is_last(sk, skb)
-	    && ((skb_tfw_tls_type(skb) != skb_tfw_tls_type(next))
-		|| (skb->mark != next->mark)
-		|| (((skb_shinfo(skb)->tx_flags & SKBTX_SHARED_FRAG)
-		    != (skb_shinfo(next)->tx_flags & SKBTX_SHARED_FRAG)))))
+	if (tcp_skb_is_last(sk, skb))
+		return true;
+
+	if (skb_tfw_tls_type(skb) != skb_tfw_tls_type(next))
+		return false;
+
+	if (skb->mark != next->mark)
+		return false;
+
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_SHARED_FRAG) !=
+	    (skb_shinfo(next)->tx_flags & SKBTX_SHARED_FRAG))
 		return false;
 
 	return true;
@@ -2367,8 +2374,7 @@ static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 			break;
 
 #ifdef CONFIG_SECURITY_TEMPESTA
-		if (sock_flag(sk, SOCK_TEMPESTA)
-		    && !tfw_tcp_skb_can_collapse(sk, skb, next))
+		if (!tfw_tcp_skb_can_collapse(sk, skb, next))
 			return false;
 #endif
 
