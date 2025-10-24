@@ -409,6 +409,9 @@ kmem_cache_create(const char *name, unsigned int size, unsigned int align,
 	return kmem_cache_create_usercopy(name, size, align, flags, 0, 0,
 					  ctor);
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
+ALLOW_ERROR_INJECTION(kmem_cache_create, NULL);
+#endif
 EXPORT_SYMBOL(kmem_cache_create);
 
 static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
