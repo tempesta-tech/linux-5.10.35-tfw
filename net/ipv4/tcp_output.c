@@ -2056,7 +2056,11 @@ static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
 /* Return the number of segments we want in the skb we are transmitting.
  * See if congestion control module wants to decide; otherwise, autosize.
  */
+#ifdef CONFIG_SECURITY_TEMPESTA
+u32 tcp_tso_segs(struct sock *sk, unsigned int mss_now)
+#else
 static u32 tcp_tso_segs(struct sock *sk, unsigned int mss_now)
+#endif
 {
 	const struct tcp_congestion_ops *ca_ops = inet_csk(sk)->icsk_ca_ops;
 	u32 min_tso, tso_segs;
@@ -2068,9 +2072,16 @@ static u32 tcp_tso_segs(struct sock *sk, unsigned int mss_now)
 	tso_segs = tcp_tso_autosize(sk, mss_now, min_tso);
 	return min_t(u32, tso_segs, sk->sk_gso_max_segs);
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
+EXPORT_SYMBOL(tcp_tso_segs);
+#endif
 
 /* Returns the portion of skb which can be sent right away */
+#ifdef CONFIG_SECURITY_TEMPESTA
+unsigned int tcp_mss_split_point(const struct sock *sk,
+#else
 static unsigned int tcp_mss_split_point(const struct sock *sk,
+#endif
 					const struct sk_buff *skb,
 					unsigned int mss_now,
 					unsigned int max_segs,
@@ -2100,6 +2111,9 @@ static unsigned int tcp_mss_split_point(const struct sock *sk,
 
 	return needed;
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
+EXPORT_SYMBOL(tcp_mss_split_point);
+#endif
 
 /* Can at least one segment of SKB be sent right now, according to the
  * congestion window rules?  If so, return how many segments are allowed.
