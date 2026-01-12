@@ -649,19 +649,29 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 }
 EXPORT_SYMBOL(tcp_ioctl);
 
+#ifdef CONFIG_SECURITY_TEMPESTA
 void tcp_mark_push(struct tcp_sock *tp, struct sk_buff *skb)
+#else
+static inline void tcp_mark_push(struct tcp_sock *tp, struct sk_buff *skb)
+#endif
 {
 	TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_PSH;
 	tp->pushed_seq = tp->write_seq;
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_mark_push);
+#endif
 
 static inline bool forced_push(const struct tcp_sock *tp)
 {
 	return after(tp->write_seq, tp->pushed_seq + (tp->max_window >> 1));
 }
 
+#ifdef CONFIG_SECURITY_TEMPESTA
 void skb_entail(struct sock *sk, struct sk_buff *skb)
+#else
+static void skb_entail(struct sock *sk, struct sk_buff *skb)
+#endif
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
@@ -687,7 +697,9 @@ void skb_entail(struct sock *sk, struct sk_buff *skb)
 
 	tcp_slow_start_after_idle_check(sk);
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(skb_entail);
+#endif
 
 static inline void tcp_mark_urg(struct tcp_sock *tp, int flags)
 {
@@ -747,7 +759,9 @@ void tcp_push(struct sock *sk, int flags, int mss_now,
 
 	__tcp_push_pending_frames(sk, mss_now, nonagle);
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_push);
+#endif
 
 static int tcp_splice_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 				unsigned int offset, size_t len)
@@ -960,7 +974,9 @@ int tcp_send_mss(struct sock *sk, int *size_goal, int flags)
 
 	return mss_now;
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_send_mss);
+#endif
 
 /* In some cases, both sendpage() and sendmsg() could have added
  * an skb to the write queue, but failed adding payload on it.
@@ -1597,7 +1613,9 @@ void tcp_cleanup_rbuf(struct sock *sk, int copied)
 	if (time_to_ack)
 		tcp_send_ack(sk);
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_cleanup_rbuf);
+#endif
 
 static struct sk_buff *tcp_recv_skb(struct sock *sk, u32 seq, u32 *off)
 {
@@ -2371,7 +2389,11 @@ static const unsigned char new_state[16] = {
   [TCP_NEW_SYN_RECV]	= TCP_CLOSE,	/* should not happen ! */
 };
 
+#ifdef CONFIG_SECURITY_TEMPESTA
 int tcp_close_state(struct sock *sk)
+#else
+static int tcp_close_state(struct sock *sk)
+#endif
 {
 	int next = (int)new_state[sk->sk_state];
 	int ns = next & TCP_STATE_MASK;
@@ -2380,7 +2402,9 @@ int tcp_close_state(struct sock *sk)
 
 	return next & TCP_ACTION_FIN;
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_close_state);
+#endif
 
 /*
  *	Shutdown the sending side of a connection. Much like close except

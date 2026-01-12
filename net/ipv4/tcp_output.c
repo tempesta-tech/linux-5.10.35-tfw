@@ -395,7 +395,11 @@ static void tcp_ecn_send(struct sock *sk, struct sk_buff *skb,
 /* Constructs common control bits of non-data skb. If SYN/FIN is present,
  * auto increment end seqno.
  */
+#ifdef CONFIG_SECURITY_TEMPESTA
 void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
+#else
+static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
+#endif
 {
 	skb->ip_summed = CHECKSUM_PARTIAL;
 
@@ -409,7 +413,9 @@ void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 		seq++;
 	TCP_SKB_CB(skb)->end_seq = seq;
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_init_nondata_skb);
+#endif
 
 static inline bool tcp_urg_mode(const struct tcp_sock *tp)
 {
@@ -1435,7 +1441,11 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
  * NOTE: probe0 timer is not checked, do not forget tcp_push_pending_frames,
  * otherwise socket can stall.
  */
+#ifdef CONFIG_SECURITY_TEMPESTA
 void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
+#else
+static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
+#endif
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -1446,10 +1456,16 @@ void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 	sk_wmem_queued_add(sk, skb->truesize);
 	sk_mem_charge(sk, skb->truesize);
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_queue_skb);
+#endif
 
 /* Initialize TSO segments for a packet. */
+#ifdef CONFIG_SECURITY_TEMPESTA
 void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
+#else
+static void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
+#endif
 {
 	if (skb->len <= mss_now) {
 		/* Avoid the costly divide in the normal
@@ -1462,12 +1478,18 @@ void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
 		TCP_SKB_CB(skb)->tcp_gso_size = mss_now;
 	}
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_set_skb_tso_segs);
+#endif
 
 /* Pcount in the middle of the write queue got changed, we need to do various
  * tweaks to fix counters
  */
+#ifdef CONFIG_SECURITY_TEMPESTA
 void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb, int decr)
+#else
+static void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb, int decr)
+#endif
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -1491,7 +1513,9 @@ void tcp_adjust_pcount(struct sock *sk, const struct sk_buff *skb, int decr)
 
 	tcp_verify_left_out(tp);
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_adjust_pcount);
+#endif
 
 static bool tcp_has_tx_tstamp(const struct sk_buff *skb)
 {
@@ -1499,7 +1523,11 @@ static bool tcp_has_tx_tstamp(const struct sk_buff *skb)
 		(skb_shinfo(skb)->tx_flags & SKBTX_ANY_TSTAMP);
 }
 
+#ifdef CONFIG_SECURITY_TEMPESTA
 void tcp_fragment_tstamp(struct sk_buff *skb, struct sk_buff *skb2)
+#else
+static void tcp_fragment_tstamp(struct sk_buff *skb, struct sk_buff *skb2)
+#endif
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 
@@ -1515,14 +1543,22 @@ void tcp_fragment_tstamp(struct sk_buff *skb, struct sk_buff *skb2)
 		TCP_SKB_CB(skb)->txstamp_ack = 0;
 	}
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_fragment_tstamp);
+#endif
 
+#ifdef CONFIG_SECURITY_TEMPESTA
 void tcp_skb_fragment_eor(struct sk_buff *skb, struct sk_buff *skb2)
+#else
+static void tcp_skb_fragment_eor(struct sk_buff *skb, struct sk_buff *skb2)
+#endif
 {
 	TCP_SKB_CB(skb2)->eor = TCP_SKB_CB(skb)->eor;
 	TCP_SKB_CB(skb)->eor = 0;
 }
+#ifdef CONFIG_SECURITY_TEMPESTA
 EXPORT_SYMBOL(tcp_skb_fragment_eor);
+#endif
 
 /* Insert buff after skb on the write or rtx queue of sk.  */
 static void tcp_insert_write_queue_after(struct sk_buff *skb,
