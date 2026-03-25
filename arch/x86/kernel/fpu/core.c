@@ -163,7 +163,8 @@ void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 	 * preciseely that softirq uses FPU, so we have to disable softirq as
 	 * well as task preemption.
 	 */
-	local_bh_disable();
+	if (!irqs_disabled())
+		local_bh_disable();
 #endif
 	preempt_disable();
 
@@ -188,7 +189,8 @@ void kernel_fpu_end(void)
 
 	preempt_enable();
 #ifdef CONFIG_SECURITY_TEMPESTA
-	local_bh_enable();
+	if (!irqs_disabled())
+		local_bh_enable();
 #endif
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_end);
